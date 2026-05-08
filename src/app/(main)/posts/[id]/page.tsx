@@ -2,10 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { formatDistanceToNow, format } from 'date-fns'
 import Link from 'next/link'
-import { ArrowLeft, MapPin, Calendar, Heart, MessageCircle } from 'lucide-react'
+import { ArrowLeft, MapPin, Calendar } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import { EventAttendButton } from '@/components/events/EventAttendButton'
+import { PostActions } from '@/components/posts/PostActions'
 import type { Post } from '@/types/database'
 
 interface PostPageProps {
@@ -45,6 +46,7 @@ export default async function PostPage({ params }: PostPageProps) {
   const attending = event?.event_attendees?.some(a => a.user_id === user?.id)
   const attendeeCount = event?.event_attendees?.length ?? 0
   const likeCount = post.post_likes?.length ?? 0
+  const liked = post.post_likes?.some((l: { user_id: string }) => l.user_id === user?.id) ?? false
 
   return (
     <div>
@@ -152,51 +154,14 @@ export default async function PostPage({ params }: PostPageProps) {
           )}
 
           {/* Stats + actions */}
-          <div
-            className="flex items-center justify-between mt-5 pt-4"
-            style={{ borderTop: '1px solid var(--border)' }}
-          >
-            <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-3)' }}>
-              {likeCount > 0 && (
-                <span><strong style={{ color: 'var(--text)' }}>{likeCount}</strong> likes</span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Reply */}
-              <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition"
-                style={{ color: 'var(--text-3)' }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#1d9bf0'; e.currentTarget.style.background = 'rgba(29,155,240,0.1)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent' }}
-              >
-                <MessageCircle size={16} />
-                <span>Reply</span>
-              </button>
-
-              {/* Like */}
-              <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition"
-                style={{ color: 'var(--text-3)' }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#f91880'; e.currentTarget.style.background = 'rgba(249,24,128,0.1)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent' }}
-              >
-                <Heart size={16} />
-                <span>Like</span>
-              </button>
-
-              {/* Message author */}
-              {user && post.author_id !== user.id && (
-                <Link
-                  href={`/messages/${post.profiles?.id}`}
-                  className="px-4 py-1.5 rounded-full text-sm font-bold transition hover:opacity-90"
-                  style={{ background: '#1d9bf0', color: 'white' }}
-                >
-                  Message
-                </Link>
-              )}
-            </div>
-          </div>
+          <PostActions
+            postId={post.id}
+            authorId={post.author_id}
+            authorProfileId={post.profiles?.id}
+            currentUserId={user?.id}
+            initialLikeCount={likeCount}
+            initialLiked={liked}
+          />
         </div>
       </article>
     </div>
