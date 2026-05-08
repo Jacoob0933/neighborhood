@@ -16,75 +16,21 @@ interface FeedPageProps {
 async function FeedPosts({ category, userId }: { category?: string; userId: string }) {
   const supabase = await createClient()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('city, neighborhood, location')
-    .eq('id', userId)
-    .single()
-
   type RawPost = Record<string, unknown>
-  let posts: RawPost[] | null = null
 
-  if (profile?.location) {
-    const locStr = profile.location as unknown as string
-    const match = locStr.match(/POINT\(([^ ]+) ([^ )]+)\)/)
-    if (match) {
-      const [, lng, lat] = match
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any).rpc('posts_near', {
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
-        radius_m: 20000,
-        lim: PAGE_SIZE + 1,
-        cat: category && category !== 'all' ? category : null,
-      })
-      posts = data
-    }
-  }
+  let query = supabase
+    .from('posts')
+    .select('*, profiles(id, username, full_name, avatar_url, city, neighborhood), post_likes(user_id)')
+    .order('created_at', { ascending: false })
+    .limit(PAGE_SIZE + 1)
 
-  if (!posts) {
-    let query = supabase
-      .from('posts')
-      .select('*, profiles(id, username, full_name, avatar_url, city, neighborhood), post_likes(user_id)')
-      .order('created_at', { ascending: false })
-      .limit(PAGE_SIZE + 1)
+  if (category && category !== 'all') query = query.eq('category', category as PostCategory)
 
-    if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+  const { data: rawPosts } = await query
+  let posts: RawPost[] = rawPosts ?? []
 
-    const { data } = await query
-    posts = data
-  }
-
-  if (posts && posts.length > 0 && !posts[0].profiles) {
-    const authorIds = [...new Set(posts.map(p => p.author_id as string))]
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url, city, neighborhood')
-      .in('id', authorIds)
-
-    const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
-
-    const postIds = posts.map(p => p.id as string)
-    const { data: likes } = await supabase
-      .from('post_likes')
-      .select('post_id, user_id')
-      .in('post_id', postIds)
-
-    const likesByPost: Record<string, { user_id: string }[]> = {}
-    for (const like of likes ?? []) {
-      if (!likesByPost[like.post_id]) likesByPost[like.post_id] = []
-      likesByPost[like.post_id].push({ user_id: like.user_id })
-    }
-
-    posts = posts.map(p => ({
-      ...p,
-      profiles: profileMap[p.author_id as string],
-      post_likes: likesByPost[p.id as string] ?? [],
-    }))
-  }
-
-  const hasMore = (posts?.length ?? 0) > PAGE_SIZE
-  const pagePosts = hasMore ? posts!.slice(0, PAGE_SIZE) : (posts ?? [])
+  const hasMore = posts.length > PAGE_SIZE
+  const pagePosts = hasMore ? posts.slice(0, PAGE_SIZE) : posts
   const nextCursor = hasMore
     ? (pagePosts[pagePosts.length - 1] as { created_at: string }).created_at
     : null
