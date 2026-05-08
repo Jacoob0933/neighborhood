@@ -17,20 +17,29 @@ export default async function PostPage({ params }: PostPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Simple query — no deep nesting that can break PostgREST
-  const { data: post, error } = await supabase
+  // Minimal query — just the post itself, no joins
+  const { data: post } = await supabase
     .from('posts')
-    .select(`
-      *,
-      profiles(id, username, full_name, avatar_url, city, neighborhood),
-      post_likes(user_id)
-    `)
+    .select('*')
     .eq('id', id)
     .single()
 
-  if (error || !post) notFound()
+  if (!post) notFound()
 
-  // Fetch linked event separately (if any)
+  // Fetch author profile separately
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url, city, neighborhood')
+    .eq('id', post.author_id)
+    .single()
+
+  // Fetch likes separately
+  const { data: likes } = await supabase
+    .from('post_likes')
+    .select('user_id')
+    .eq('post_id', id)
+
+  // Fetch linked event separately
   const { data: event } = await supabase
     .from('events')
     .select('id, starts_at, ends_at, location_name, max_attendees')
@@ -39,16 +48,13 @@ export default async function PostPage({ params }: PostPageProps) {
 
   // Fetch attendees separately
   const { data: attendees } = event
-    ? await supabase
-        .from('event_attendees')
-        .select('user_id')
-        .eq('event_id', event.id)
-    : { data: null }
+    ? await supabase.from('event_attendees').select('user_id').eq('event_id', event.id)
+    : { data: [] }
 
+  const likeCount = likes?.length ?? 0
+  const liked = likes?.some(l => l.user_id === user?.id) ?? false
   const attending = attendees?.some(a => a.user_id === user?.id) ?? false
   const attendeeCount = attendees?.length ?? 0
-  const likeCount = post.post_likes?.length ?? 0
-  const liked = post.post_likes?.some((l: { user_id: string }) => l.user_id === user?.id) ?? false
 
   return (
     <div>
@@ -82,20 +88,20 @@ export default async function PostPage({ params }: PostPageProps) {
         <div className="px-4 py-4">
           {/* Author row */}
           <div className="flex items-center gap-3 mb-4">
-            <Link href={`/profile/${post.profiles?.id}`}>
+            <Link href={`/profile/${profile?.id ?? post.author_id}`}>
               <Avatar
-                src={post.profiles?.avatar_url}
-                name={post.profiles?.full_name ?? post.profiles?.username}
+                src={profile?.avatar_url}
+                name={profile?.full_name ?? profile?.username}
                 size="md"
               />
             </Link>
             <div className="flex-1 min-w-0">
               <Link
-                href={`/profile/${post.profiles?.id}`}
+                href={`/profile/${profile?.id ?? post.author_id}`}
                 className="font-bold text-sm hover:underline block"
                 style={{ color: 'var(--text)' }}
               >
-                {post.profiles?.full_name ?? post.profiles?.username ?? 'Anonymous'}
+                {profile?.full_name ?? profile?.username ?? 'Anonymous'}
               </Link>
               <div className="flex items-center gap-1.5 text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
                 {(post.neighborhood || post.city) && (
@@ -121,9 +127,7 @@ export default async function PostPage({ params }: PostPageProps) {
               {post.image_urls.slice(1).map((url: string, i: number) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  key={i}
-                  src={url}
-                  alt=""
+                  key={i} src={url} alt=""
                   className="w-full h-28 object-cover rounded-xl"
                   loading="lazy"
                   style={{ border: '1px solid var(--border)' }}
@@ -168,7 +172,7 @@ export default async function PostPage({ params }: PostPageProps) {
           <PostActions
             postId={post.id}
             authorId={post.author_id}
-            authorProfileId={post.profiles?.id}
+            authorProfileId={profile?.id}
             currentUserId={user?.id}
             initialLikeCount={likeCount}
             initialLiked={liked}
