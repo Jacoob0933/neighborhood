@@ -6,10 +6,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**' },
     ],
   },
-  // Allow server-side Supabase calls
-  experimental: {
-    serverComponentsExternalPackages: [],
-  },
+  serverExternalPackages: ['sharp'],
 };
 
 export default nextConfig;

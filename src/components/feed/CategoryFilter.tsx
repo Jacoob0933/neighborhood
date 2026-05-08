@@ -1,14 +1,13 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { PostCategory } from '@/types/database'
 
-const categories: { value: PostCategory | 'all'; label: string; emoji: string }[] = [
-  { value: 'all', label: 'All', emoji: '🏘️' },
-  { value: 'general', label: 'General', emoji: '💬' },
-  { value: 'events', label: 'Events', emoji: '🎉' },
-  { value: 'marketplace', label: 'Marketplace', emoji: '🛍️' },
-  { value: 'lost_found', label: 'Lost & Found', emoji: '🔍' },
+const categories = [
+  { value: 'all', label: 'For You' },
+  { value: 'general', label: 'General' },
+  { value: 'events', label: 'Events' },
+  { value: 'marketplace', label: 'Marketplace' },
+  { value: 'lost_found', label: 'Lost & Found' },
 ]
 
 export function CategoryFilter() {
@@ -24,19 +23,26 @@ export function CategoryFilter() {
   }
 
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-      {categories.map(({ value, label, emoji }) => (
+    <div className="flex overflow-x-auto no-scrollbar" style={{ borderBottom: '1px solid var(--border)' }}>
+      {categories.map(({ value, label }) => (
         <button
           key={value}
           onClick={() => select(value)}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-            current === value
-              ? 'bg-green-600 text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:border-green-300 hover:text-green-700'
-          }`}
+          className="relative shrink-0 px-5 py-4 text-sm font-medium transition-colors"
+          style={{
+            color: current === value ? 'var(--text)' : 'var(--text-2)',
+            fontWeight: current === value ? 700 : 500,
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <span>{emoji}</span>
           {label}
+          {current === value && (
+            <span
+              className="absolute bottom-0 left-4 right-4 h-1 rounded-full"
+              style={{ background: '#1d9bf0' }}
+            />
+          )}
         </button>
       ))}
     </div>

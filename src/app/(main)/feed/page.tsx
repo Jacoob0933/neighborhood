@@ -1,32 +1,31 @@
 import { createClient } from '@/lib/supabase/server'
 import { Suspense } from 'react'
-import { MapPin, Bell } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import Link from 'next/link'
 import type { PostCategory } from '@/types/database'
 import { PostCard } from '@/components/feed/PostCard'
 import { CategoryFilter } from '@/components/feed/CategoryFilter'
+import { FeedInfinite } from '@/components/feed/FeedInfinite'
+
+const PAGE_SIZE = 20
 
 interface FeedPageProps {
   searchParams: Promise<{ category?: string }>
 }
 
-async function FeedPosts({ category }: { category?: string }) {
+async function FeedPosts({ category, userId }: { category?: string; userId: string }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return null
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('city, neighborhood, location')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
-  let posts
+  type RawPost = Record<string, unknown>
+  let posts: RawPost[] | null = null
 
-  // If user has GPS location, use the 20km radius function
   if (profile?.location) {
-    // location is stored as WKT; parse lat/lng from the POINT geometry
     const locStr = profile.location as unknown as string
     const match = locStr.match(/POINT\(([^ ]+) ([^ )]+)\)/)
     if (match) {
@@ -36,20 +35,19 @@ async function FeedPosts({ category }: { category?: string }) {
         lat: parseFloat(lat),
         lng: parseFloat(lng),
         radius_m: 20000,
-        lim: 50,
+        lim: PAGE_SIZE + 1,
         cat: category && category !== 'all' ? category : null,
       })
       posts = data
     }
   }
 
-  // Fallback: city-based query
   if (!posts) {
     let query = supabase
       .from('posts')
       .select('*, profiles(id, username, full_name, avatar_url, city, neighborhood), post_likes(user_id)')
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(PAGE_SIZE + 1)
 
     if (profile?.city) query = query.eq('city', profile.city)
     if (category && category !== 'all') query = query.eq('category', category as PostCategory)
@@ -58,9 +56,8 @@ async function FeedPosts({ category }: { category?: string }) {
     posts = data
   }
 
-  // If we used rpc, fetch profiles separately (rpc doesn't support joins)
   if (posts && posts.length > 0 && !posts[0].profiles) {
-    const authorIds = [...new Set(posts.map((p: { author_id: string }) => p.author_id))]
+    const authorIds = [...new Set(posts.map(p => p.author_id as string))]
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, city, neighborhood')
@@ -68,7 +65,7 @@ async function FeedPosts({ category }: { category?: string }) {
 
     const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
 
-    const postIds = posts.map((p: { id: string }) => p.id)
+    const postIds = posts.map(p => p.id as string)
     const { data: likes } = await supabase
       .from('post_likes')
       .select('post_id, user_id')
@@ -80,22 +77,29 @@ async function FeedPosts({ category }: { category?: string }) {
       likesByPost[like.post_id].push({ user_id: like.user_id })
     }
 
-    posts = posts.map((p: { id: string; author_id: string }) => ({
+    posts = posts.map(p => ({
       ...p,
-      profiles: profileMap[p.author_id],
-      post_likes: likesByPost[p.id] ?? [],
+      profiles: profileMap[p.author_id as string],
+      post_likes: likesByPost[p.id as string] ?? [],
     }))
   }
 
-  if (!posts?.length) {
+  const hasMore = (posts?.length ?? 0) > PAGE_SIZE
+  const pagePosts = hasMore ? posts!.slice(0, PAGE_SIZE) : (posts ?? [])
+  const nextCursor = hasMore
+    ? (pagePosts[pagePosts.length - 1] as { created_at: string }).created_at
+    : null
+
+  if (!pagePosts.length) {
     return (
-      <div className="text-center py-16 text-gray-400">
-        <p className="text-4xl mb-3">🏡</p>
-        <p className="font-medium text-gray-600">No posts in your area yet.</p>
-        <p className="text-sm mt-1">Be the first to post!</p>
+      <div className="text-center py-20 px-6">
+        <p className="text-5xl mb-4">🏡</p>
+        <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>No posts in your area yet.</p>
+        <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>Be the first to post something!</p>
         <Link
           href="/posts/new"
-          className="inline-block mt-4 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition"
+          className="inline-block px-6 py-2.5 rounded-full text-sm font-bold text-white transition hover:opacity-90"
+          style={{ background: '#1d9bf0' }}
         >
           Create a post
         </Link>
@@ -104,11 +108,12 @@ async function FeedPosts({ category }: { category?: string }) {
   }
 
   return (
-    <div className="space-y-4">
-      {posts.map((post: Parameters<typeof PostCard>[0]['post']) => (
-        <PostCard key={post.id} post={post} currentUserId={user.id} />
+    <>
+      {(pagePosts as unknown as Parameters<typeof PostCard>[0]['post'][]).map(post => (
+        <PostCard key={post.id} post={post} currentUserId={userId} />
       ))}
-    </div>
+      <FeedInfinite initialCursor={nextCursor} category={category} currentUserId={userId} />
+    </>
   )
 }
 
@@ -126,23 +131,19 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const locationLabel = profile?.neighborhood || profile?.city || 'Your area'
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Community Feed</h1>
-          <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-            <MapPin size={13} />
-            <span>{locationLabel} · 20km radius</span>
+    <div>
+      {/* Sticky header */}
+      <div
+        className="sticky top-0 z-30 backdrop-blur-md"
+        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+      >
+        <div className="flex items-center justify-between px-4 py-3">
+          <h1 className="text-lg font-black" style={{ color: 'var(--text)' }}>Home</h1>
+          <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-3)' }}>
+            <MapPin size={11} />
+            <span>{locationLabel}</span>
           </div>
         </div>
-        <button className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition relative">
-          <Bell size={20} />
-        </button>
-      </div>
-
-      {/* Category filter */}
-      <div className="mb-5">
         <Suspense>
           <CategoryFilter />
         </Suspense>
@@ -151,27 +152,44 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       {/* Quick compose */}
       <Link
         href="/posts/new"
-        className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-3 mb-6 hover:border-green-300 transition-colors group"
+        className="flex items-center gap-3 px-4 py-3 group transition-colors"
+        style={{ borderBottom: '1px solid var(--border)' }}
       >
-        <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center text-green-600 group-hover:bg-green-100 transition">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: 'var(--bg-2)', color: 'var(--text-3)' }}
+        >
           <span className="text-lg">✏️</span>
         </div>
-        <span className="text-sm text-gray-400 group-hover:text-gray-600 transition">
+        <span className="text-sm flex-1" style={{ color: 'var(--text-3)' }}>
           What&apos;s happening in {locationLabel}?
+        </span>
+        <span
+          className="text-xs font-bold px-4 py-1.5 rounded-full shrink-0"
+          style={{ background: '#1d9bf0', color: 'white' }}
+        >
+          Post
         </span>
       </Link>
 
-      {/* Posts */}
+      {/* Posts with skeleton loading */}
       <Suspense
         fallback={
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 h-48 animate-pulse" />
+          <div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="w-10 h-10 rounded-full shrink-0 animate-pulse" style={{ background: 'var(--bg-2)' }} />
+                <div className="flex-1 space-y-2.5 pt-1">
+                  <div className="h-3 rounded-full animate-pulse w-1/4" style={{ background: 'var(--bg-2)' }} />
+                  <div className="h-3 rounded-full animate-pulse w-full" style={{ background: 'var(--bg-2)' }} />
+                  <div className="h-3 rounded-full animate-pulse w-3/4" style={{ background: 'var(--bg-2)' }} />
+                </div>
+              </div>
             ))}
           </div>
         }
       >
-        <FeedPosts category={params.category} />
+        {user && <FeedPosts category={params.category} userId={user.id} />}
       </Suspense>
     </div>
   )

@@ -1,24 +1,27 @@
 @import "tailwindcss";
 @import "mapbox-gl/dist/mapbox-gl.css";
 
-* {
-  box-sizing: border-box;
-}
-
-html, body {
-  height: 100%;
-}
-
-/* Safe area insets for mobile notch */
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Hide scrollbar but keep scrolling */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Smooth transitions */
-.transition-base {
-  transition: all 150ms ease-in-out;
+/* Dark theme variables */
+:root {
+  --bg: #000000;
+  --bg-2: #16181c;
+  --bg-hover: #1d1f23;
+  --border: #2f3336;
+  --text: #e7e9ea;
+  --text-2: #71767b;
+  --text-3: #536471;
 }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.post-row:hover { background: var(--bg-hover); }
+a, button { transition: opacity 150ms, background 150ms, color 150ms; }

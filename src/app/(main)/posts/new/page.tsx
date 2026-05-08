@@ -1,31 +1,43 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, MapPin, X, Image as ImageIcon } from 'lucide-react'
 import type { PostCategory } from '@/types/database'
+import imageCompression from 'browser-image-compression'
 
-const CATEGORIES: { value: PostCategory; label: string; emoji: string; description: string }[] = [
-  { value: 'general', label: 'General', emoji: '💬', description: 'General discussion' },
-  { value: 'events', label: 'Event', emoji: '🎉', description: 'Local events' },
-  { value: 'marketplace', label: 'Marketplace', emoji: '🛍️', description: 'Buy, sell, give away' },
-  { value: 'lost_found', label: 'Lost & Found', emoji: '🔍', description: 'Missing or found items' },
+const CATEGORIES: { value: PostCategory; label: string; emoji: string }[] = [
+  { value: 'general', label: 'General', emoji: '💬' },
+  { value: 'events', label: 'Event', emoji: '🎉' },
+  { value: 'marketplace', label: 'Marketplace', emoji: '🛍️' },
+  { value: 'lost_found', label: 'Lost & Found', emoji: '🔍' },
 ]
+
+const inputStyle = {
+  width: '100%',
+  borderRadius: '12px',
+  border: '1px solid var(--border)',
+  background: 'var(--bg-2)',
+  color: 'var(--text)',
+  padding: '12px 16px',
+  fontSize: '14px',
+  outline: 'none',
+}
 
 export default function NewPostPage() {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [category, setCategory] = useState<PostCategory>('general')
-  const [imageUrls, setImageUrls] = useState<string[]>([])
-  const [newImageUrl, setNewImageUrl] = useState('')
+  const [images, setImages] = useState<{ preview: string; file: File }[]>([])
+  const [uploadingImages, setUploadingImages] = useState(false)
   const [detectingLocation, setDetectingLocation] = useState(false)
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Event-specific fields
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
   const [eventLocation, setEventLocation] = useState('')
@@ -42,19 +54,41 @@ export default function NewPostPage() {
     )
   }
 
-  function addImageUrl() {
-    if (newImageUrl.trim()) {
-      setImageUrls(prev => [...prev, newImageUrl.trim()])
-      setNewImageUrl('')
-    }
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setUploadingImages(true)
+
+    const newImages = await Promise.all(
+      files.slice(0, 4 - images.length).map(async file => {
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 0.8,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true,
+        })
+        const preview = URL.createObjectURL(compressed)
+        return { preview, file: compressed }
+      })
+    )
+
+    setImages(prev => [...prev, ...newImages])
+    setUploadingImages(false)
+    e.target.value = ''
+  }
+
+  function removeImage(index: number) {
+    setImages(prev => {
+      URL.revokeObjectURL(prev[index].preview)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !body.trim()) return
-
     setLoading(true)
     setError('')
+
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/sign-in'); return }
@@ -64,6 +98,21 @@ export default function NewPostPage() {
       .select('city, neighborhood')
       .eq('id', user.id)
       .single()
+
+    // Upload images to Supabase Storage
+    const imageUrls: string[] = []
+    for (const { file } of images) {
+      const ext = file.type === 'image/webp' ? 'webp' : file.name.split('.').pop() ?? 'jpg'
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(path, file, { contentType: file.type, upsert: false })
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(path)
+        imageUrls.push(publicUrl)
+      }
+    }
 
     const postData: Record<string, unknown> = {
       author_id: user.id,
@@ -91,7 +140,6 @@ export default function NewPostPage() {
       return
     }
 
-    // Create event record if category is events
     if (category === 'events' && eventDate) {
       const startsAt = new Date(`${eventDate}T${eventTime || '00:00'}`)
       await supabase.from('events').insert({
@@ -109,151 +157,136 @@ export default function NewPostPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
+    <div>
+      {/* Header */}
+      <div
+        className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-md"
+        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+      >
         <button
           onClick={() => router.back()}
-          className="p-2 rounded-xl hover:bg-gray-100 transition text-gray-500"
+          className="flex items-center justify-center w-9 h-9 rounded-full transition"
+          style={{ color: 'var(--text)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
-          <X size={20} />
+          <X size={18} />
         </button>
-        <h1 className="text-xl font-bold text-gray-900">New Post</h1>
+        <h1 className="text-base font-bold flex-1" style={{ color: 'var(--text)' }}>New Post</h1>
+        <button
+          form="post-form"
+          type="submit"
+          disabled={loading || !title.trim() || !body.trim()}
+          className="px-5 py-1.5 rounded-full text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+          style={{ background: '#1d9bf0' }}
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : 'Post'}
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form id="post-form" onSubmit={handleSubmit} className="px-4 py-5 space-y-5">
         {/* Category */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-          <div className="grid grid-cols-2 gap-2">
-            {CATEGORIES.map(cat => (
+        <div className="grid grid-cols-2 gap-2">
+          {CATEGORIES.map(cat => {
+            const active = category === cat.value
+            return (
               <button
                 key={cat.value}
                 type="button"
                 onClick={() => setCategory(cat.value)}
-                className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border text-left transition ${
-                  category === cat.value
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition text-sm font-medium"
+                style={{
+                  border: `1px solid ${active ? '#1d9bf0' : 'var(--border)'}`,
+                  background: active ? 'rgba(29,155,240,0.1)' : 'var(--bg-2)',
+                  color: active ? '#1d9bf0' : 'var(--text-2)',
+                }}
               >
-                <span className="text-xl">{cat.emoji}</span>
-                <div>
-                  <div className="text-sm font-medium">{cat.label}</div>
-                  <div className="text-xs opacity-70">{cat.description}</div>
-                </div>
+                <span className="text-base">{cat.emoji}</span>
+                {cat.label}
               </button>
-            ))}
-          </div>
+            )
+          })}
         </div>
 
         {/* Title */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Title</label>
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
             required
             maxLength={120}
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-            placeholder="What's on your mind?"
+            style={inputStyle}
+            placeholder="What's happening?"
           />
         </div>
 
         {/* Body */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Details</label>
+          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Details</label>
           <textarea
             value={body}
             onChange={e => setBody(e.target.value)}
             required
             rows={5}
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition resize-none"
-            placeholder="Add more details..."
+            style={{ ...inputStyle, resize: 'none' }}
+            placeholder="Share more details with your neighbors..."
           />
         </div>
 
-        {/* Event-specific fields */}
+        {/* Event details */}
         {category === 'events' && (
-          <div className="bg-purple-50 rounded-xl p-4 space-y-3 border border-purple-100">
-            <p className="text-sm font-medium text-purple-700">📅 Event details</p>
+          <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>📅 Event details</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Date *</label>
-                <input
-                  type="date"
-                  value={eventDate}
-                  onChange={e => setEventDate(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                />
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-2)' }}>Date *</label>
+                <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required
+                  style={{ ...inputStyle, padding: '8px 12px' }} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Time</label>
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={e => setEventTime(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                />
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-2)' }}>Time</label>
+                <input type="time" value={eventTime} onChange={e => setEventTime(e.target.value)}
+                  style={{ ...inputStyle, padding: '8px 12px' }} />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Event location</label>
-              <input
-                type="text"
-                value={eventLocation}
-                onChange={e => setEventLocation(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                placeholder="e.g. Central Park, Pavilion B"
-              />
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-2)' }}>Location name</label>
+              <input type="text" value={eventLocation} onChange={e => setEventLocation(e.target.value)}
+                placeholder="e.g. Central Park" style={{ ...inputStyle, padding: '8px 12px' }} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Max attendees</label>
-              <input
-                type="number"
-                value={maxAttendees}
-                onChange={e => setMaxAttendees(e.target.value)}
-                min={1}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                placeholder="Leave empty for unlimited"
-              />
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-2)' }}>Max attendees</label>
+              <input type="number" value={maxAttendees} onChange={e => setMaxAttendees(e.target.value)} min={1}
+                placeholder="Unlimited" style={{ ...inputStyle, padding: '8px 12px' }} />
             </div>
           </div>
         )}
 
         {/* Images */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Images <span className="font-normal text-gray-400">(optional, paste URLs)</span>
+          <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-2)' }}>
+            Photos <span style={{ color: 'var(--text-3)' }}>(up to 4)</span>
           </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={newImageUrl}
-              onChange={e => setNewImageUrl(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addImageUrl())}
-              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-              placeholder="https://example.com/image.jpg"
-            />
-            <button
-              type="button"
-              onClick={addImageUrl}
-              className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 transition text-gray-600"
-            >
-              <ImageIcon size={18} />
-            </button>
-          </div>
-          {imageUrls.length > 0 && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {imageUrls.map((url, i) => (
+
+          {images.length > 0 && (
+            <div className="flex gap-2 mb-3 flex-wrap">
+              {images.map((img, i) => (
                 <div key={i} className="relative group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                  <img
+                    src={img.preview}
+                    alt=""
+                    className="w-20 h-20 object-cover rounded-xl"
+                    style={{ border: '1px solid var(--border)' }}
+                    loading="lazy"
+                  />
                   <button
                     type="button"
-                    onClick={() => setImageUrls(prev => prev.filter((_, j) => j !== i))}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    onClick={() => removeImage(i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ background: 'var(--text)', color: 'var(--bg)' }}
                   >
                     ×
                   </button>
@@ -261,20 +294,54 @@ export default function NewPostPage() {
               ))}
             </div>
           )}
+
+          {images.length < 4 && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImages}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition"
+                style={{
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-2)',
+                  color: 'var(--text-2)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#1d9bf0')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+              >
+                {uploadingImages
+                  ? <Loader2 size={15} className="animate-spin" />
+                  : <ImageIcon size={15} />}
+                {uploadingImages ? 'Compressing...' : 'Add photos'}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Location */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Precise location</label>
+          <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-2)' }}>
+            Precise location <span style={{ color: 'var(--text-3)' }}>(optional)</span>
+          </label>
           <button
             type="button"
             onClick={detectLocation}
             disabled={detectingLocation}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition ${
-              location
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-green-300'
-            }`}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition"
+            style={{
+              border: `1px solid ${location ? '#1d9bf0' : 'var(--border)'}`,
+              background: location ? 'rgba(29,155,240,0.1)' : 'var(--bg-2)',
+              color: location ? '#1d9bf0' : 'var(--text-2)',
+            }}
           >
             {detectingLocation ? <Loader2 size={15} className="animate-spin" /> : <MapPin size={15} />}
             {location ? `📍 ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : 'Pin my location'}
@@ -282,26 +349,10 @@ export default function NewPostPage() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+          <p className="text-sm rounded-xl px-4 py-2.5" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+            {error}
+          </p>
         )}
-
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading || !title.trim() || !body.trim()}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 active:scale-[0.98] transition disabled:opacity-60"
-          >
-            {loading && <Loader2 size={16} className="animate-spin" />}
-            Publish Post
-          </button>
-        </div>
       </form>
     </div>
   )

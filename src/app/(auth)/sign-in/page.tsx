@@ -17,70 +17,83 @@ export default function SignInPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) { setError(error.message); setLoading(false) }
+    else { router.push('/feed'); router.refresh() }
+  }
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
-      router.push('/feed')
-      router.refresh()
-    }
+  const inputStyle = {
+    width: '100%',
+    borderRadius: '9999px',
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text)',
+    padding: '12px 20px',
+    fontSize: '14px',
+    outline: 'none',
   }
 
   return (
     <>
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Welcome back</h2>
+      <h2 className="text-3xl font-black mb-2" style={{ color: 'var(--text)' }}>
+        Sign in to Neighborhood
+      </h2>
+      <p className="text-sm mb-8" style={{ color: 'var(--text-2)' }}>
+        Stay connected with your community
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+          <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Email</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
             autoComplete="email"
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+            style={inputStyle}
             placeholder="you@example.com"
           />
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+          <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Password</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+            style={inputStyle}
             placeholder="••••••••"
           />
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+          <p className="text-sm text-red-400 rounded-xl px-4 py-2.5" style={{ background: 'rgba(239,68,68,0.1)' }}>
+            {error}
+          </p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 active:scale-[0.98] transition disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+          style={{ background: 'var(--text)' }}
         >
-          {loading && <Loader2 size={16} className="animate-spin" />}
+          {loading && <Loader2 size={15} className="animate-spin" />}
           Sign in
         </button>
       </form>
 
-      <p className="text-center text-sm text-gray-500 mt-6">
-        New here?{' '}
-        <Link href="/sign-up" className="font-medium text-green-600 hover:underline">
-          Create an account
-        </Link>
-      </p>
+      <div className="mt-6 pt-6 text-center" style={{ borderTop: '1px solid var(--border)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-2)' }}>
+          Don&apos;t have an account?{' '}
+          <Link href="/sign-up" className="font-bold hover:underline" style={{ color: '#1d9bf0' }}>
+            Sign up
+          </Link>
+        </p>
+      </div>
     </>
   )
 }

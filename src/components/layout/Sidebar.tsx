@@ -2,18 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, CalendarDays, MessageCircle, User, PlusCircle, LogOut } from 'lucide-react'
+import { Home, CalendarDays, MessageCircle, User, LogOut, PlusCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const links = [
-  { href: '/feed', icon: Home, label: 'Feed' },
+  { href: '/feed', icon: Home, label: 'Home' },
   { href: '/events', icon: CalendarDays, label: 'Events' },
-  { href: '/posts/new', icon: PlusCircle, label: 'New Post' },
   { href: '/messages', icon: MessageCircle, label: 'Messages' },
   { href: '/profile/me', icon: User, label: 'Profile' },
 ]
 
-export function Sidebar() {
+export function SidebarNav() {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -25,39 +24,72 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-64 shrink-0 h-full border-r border-gray-100 bg-white px-4 py-6">
-      <Link href="/feed" className="flex items-center gap-2 px-2 mb-8">
-        <span className="text-2xl">🏘️</span>
-        <span className="text-lg font-bold text-gray-900">Neighborhood</span>
+    /*
+     * sticky + h-screen so nav stays fixed while feed scrolls.
+     * On md: 72px icon-only, right-aligned content.
+     * On lg: 240px with labels.
+     */
+    <nav
+      className="sticky top-0 h-screen flex flex-col py-3 px-1 lg:px-3 overflow-hidden w-[72px] lg:w-[240px]"
+    >
+      {/* Logo — icon only on md, icon+name on lg */}
+      <Link
+        href="/feed"
+        className="flex items-center justify-center lg:justify-start gap-3 w-12 lg:w-auto h-12 rounded-full mb-2 hover:opacity-80 transition"
+      >
+        <span className="text-2xl shrink-0">🏘️</span>
+        <span className="hidden lg:block text-base font-black whitespace-nowrap" style={{ color: 'var(--text)' }}>
+          Neighborhood
+        </span>
       </Link>
 
-      <nav className="flex-1 space-y-1">
+      {/* Nav links */}
+      <div className="flex-1 flex flex-col gap-0.5">
         {links.map(({ href, icon: Icon, label }) => {
-          const active = pathname.startsWith(href)
+          const active = pathname === href || (href === '/feed' && pathname.startsWith('/feed'))
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-green-50 text-green-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
+              title={label}
+              className="flex items-center justify-center lg:justify-start gap-4 w-12 lg:w-auto h-12 lg:h-auto lg:px-4 lg:py-3 rounded-full transition"
+              style={{
+                background: active ? 'var(--bg-hover)' : 'transparent',
+                color: active ? 'var(--text)' : 'var(--text-2)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = active ? 'var(--bg-hover)' : 'transparent')}
             >
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-              {label}
+              <Icon size={22} strokeWidth={active ? 2.5 : 1.8} className="shrink-0" />
+              <span className="hidden lg:block text-base font-medium">{label}</span>
             </Link>
           )
         })}
-      </nav>
+      </div>
 
+      {/* New Post button */}
+      <Link
+        href="/posts/new"
+        title="New post"
+        className="flex items-center justify-center lg:justify-start gap-2 w-12 lg:w-full h-12 lg:h-auto lg:px-5 lg:py-3 rounded-full mb-2 font-bold text-white transition hover:opacity-90"
+        style={{ background: '#1d9bf0' }}
+      >
+        <PlusCircle size={20} className="shrink-0" />
+        <span className="hidden lg:block">New Post</span>
+      </Link>
+
+      {/* Sign out */}
       <button
         onClick={signOut}
-        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+        title="Sign out"
+        className="flex items-center justify-center lg:justify-start gap-4 w-12 lg:w-auto h-12 lg:h-auto lg:px-4 lg:py-3 rounded-full transition"
+        style={{ color: 'var(--text-3)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >
-        <LogOut size={20} strokeWidth={1.8} />
-        Sign out
+        <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
+        <span className="hidden lg:block text-sm">Sign out</span>
       </button>
-    </aside>
+    </nav>
   )
 }
