@@ -18,16 +18,57 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
 
   type RawPost = Record<string, unknown>
 
+  // Step 1: fetch posts only (no joins — avoids schema cache issues)
   let query = supabase
     .from('posts')
-    .select('*, profiles(id, username, full_name, avatar_url, city, neighborhood), post_likes(user_id)')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE + 1)
 
   if (category && category !== 'all') query = query.eq('category', category as PostCategory)
 
-  const { data: rawPosts } = await query
+  const { data: rawPosts, error } = await query
+
+  if (error) {
+    return (
+      <div className="text-center py-20 px-6">
+        <p className="text-5xl mb-4">⚠️</p>
+        <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Feed error</p>
+        <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>{error.message}</p>
+      </div>
+    )
+  }
+
   let posts: RawPost[] = rawPosts ?? []
+
+  // Step 2: enrich with profiles + likes separately
+  if (posts.length > 0) {
+    const authorIds = [...new Set(posts.map(p => p.author_id as string))]
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, city, neighborhood')
+      .in('id', authorIds)
+
+    const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+
+    const postIds = posts.map(p => p.id as string)
+    const { data: likes } = await supabase
+      .from('post_likes')
+      .select('post_id, user_id')
+      .in('post_id', postIds)
+
+    const likesByPost: Record<string, { user_id: string }[]> = {}
+    for (const like of likes ?? []) {
+      if (!likesByPost[like.post_id]) likesByPost[like.post_id] = []
+      likesByPost[like.post_id].push({ user_id: like.user_id })
+    }
+
+    posts = posts.map(p => ({
+      ...p,
+      profiles: profileMap[p.author_id as string],
+      post_likes: likesByPost[p.id as string] ?? [],
+    }))
+  }
 
   const hasMore = posts.length > PAGE_SIZE
   const pagePosts = hasMore ? posts.slice(0, PAGE_SIZE) : posts
