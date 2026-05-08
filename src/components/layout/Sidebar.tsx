@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Home, CalendarDays, MessageCircle, User, LogOut, PlusCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { NeighbrLogo } from '@/components/ui/NeighbrLogo'
 
 const links = [
   { href: '/feed', icon: Home, label: 'Home' },
@@ -32,14 +33,14 @@ export function SidebarNav() {
     <nav
       className="sticky top-0 h-screen flex flex-col py-3 px-1 lg:px-3 overflow-hidden w-[72px] lg:w-[240px]"
     >
-      {/* Logo — icon only on md, icon+name on lg */}
+      {/* Logo */}
       <Link
         href="/feed"
         className="flex items-center justify-center lg:justify-start gap-3 w-12 lg:w-auto h-12 rounded-full mb-2 hover:opacity-80 transition"
       >
-        <span className="text-2xl shrink-0">🏘️</span>
-        <span className="hidden lg:block text-base font-black whitespace-nowrap" style={{ color: 'var(--text)' }}>
-          Neighborhood
+        <div className="shrink-0"><NeighbrLogo size={34} /></div>
+        <span className="hidden lg:block text-xl font-black whitespace-nowrap" style={{ color: 'var(--text)', letterSpacing: '-0.03em' }}>
+          neighbr
         </span>
       </Link>
 

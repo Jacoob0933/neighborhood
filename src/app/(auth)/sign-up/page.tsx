@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, MapPin } from 'lucide-react'
 
+const inputStyle = {
+  width: '100%',
+  borderRadius: '9999px',
+  border: '1px solid var(--border)',
+  background: 'transparent',
+  color: 'var(--text)',
+  padding: '12px 20px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
 export default function SignUpPage() {
   const router = useRouter()
   const [step, setStep] = useState<'account' | 'location'>('account')
@@ -45,9 +56,7 @@ export default function SignUpPage() {
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { username, full_name: fullName },
-      },
+      options: { data: { username, full_name: fullName } },
     })
 
     if (signUpError) {
@@ -56,14 +65,10 @@ export default function SignUpPage() {
       return
     }
 
-    // Update profile with location
     const { data: { user } } = await supabase.auth.getUser()
     if (user && (city || coords)) {
       const locationUpdate: Record<string, unknown> = { city, neighborhood }
-      if (coords) {
-        // PostGIS geography stored as WKT
-        locationUpdate.location = `POINT(${coords.lng} ${coords.lat})`
-      }
+      if (coords) locationUpdate.location = `POINT(${coords.lng} ${coords.lat})`
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await supabase.from('profiles').update(locationUpdate as any).eq('id', user.id)
     }
@@ -74,13 +79,13 @@ export default function SignUpPage() {
 
   return (
     <>
-      <h2 className="text-xl font-semibold text-gray-900 mb-1">
-        {step === 'account' ? 'Create your account' : 'Where are you?'}
+      <h2 className="text-3xl font-black mb-2" style={{ color: 'var(--text)' }}>
+        {step === 'account' ? 'Join Neighbr' : 'Where are you?'}
       </h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm mb-8" style={{ color: 'var(--text-2)' }}>
         {step === 'account'
-          ? 'Join your neighborhood community'
-          : 'We use this to show you local posts within 20km'}
+          ? 'Connect with people in your neighborhood'
+          : 'We use this to show you posts within 20 km'}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,55 +93,26 @@ export default function SignUpPage() {
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                  placeholder="Jane Smith"
-                />
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>FULL NAME</label>
+                <input type="text" value={fullName} onChange={e => setFullName(e.target.value)}
+                  required style={inputStyle} placeholder="Jane Smith" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
-                <input
-                  type="text"
-                  value={username}
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>USERNAME</label>
+                <input type="text" value={username}
                   onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                  required
-                  minLength={3}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                  placeholder="janesmith"
-                />
+                  required minLength={3} style={inputStyle} placeholder="janesmith" />
               </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                placeholder="you@example.com"
-              />
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>EMAIL</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                required autoComplete="email" style={inputStyle} placeholder="you@example.com" />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={8}
-                autoComplete="new-password"
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                placeholder="Min 8 characters"
-              />
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>PASSWORD</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                required minLength={8} autoComplete="new-password" style={inputStyle} placeholder="Min 8 characters" />
             </div>
           </>
         ) : (
@@ -145,62 +121,59 @@ export default function SignUpPage() {
               type="button"
               onClick={detectLocation}
               disabled={detecting}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green-300 bg-green-50 px-4 py-4 text-sm font-medium text-green-700 hover:bg-green-100 transition disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 rounded-full px-4 py-4 text-sm font-bold transition disabled:opacity-60"
+              style={{
+                border: `2px dashed ${coords ? '#1d9bf0' : 'var(--border)'}`,
+                background: coords ? 'rgba(29,155,240,0.08)' : 'var(--bg-2)',
+                color: coords ? '#1d9bf0' : 'var(--text-2)',
+              }}
             >
               {detecting ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
               {coords ? '📍 Location detected!' : 'Auto-detect my location'}
             </button>
 
             <div className="relative flex items-center">
-              <div className="flex-grow border-t border-gray-200" />
-              <span className="mx-3 text-xs text-gray-400 shrink-0">or enter manually</span>
-              <div className="flex-grow border-t border-gray-200" />
+              <div className="flex-grow" style={{ borderTop: '1px solid var(--border)' }} />
+              <span className="mx-3 text-xs" style={{ color: 'var(--text-3)' }}>or enter manually</span>
+              <div className="flex-grow" style={{ borderTop: '1px solid var(--border)' }} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
-              <input
-                type="text"
-                value={city}
-                onChange={e => setCity(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                placeholder="San Francisco"
-              />
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>CITY</label>
+              <input type="text" value={city} onChange={e => setCity(e.target.value)}
+                style={inputStyle} placeholder="Prague" />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Neighborhood <span className="text-gray-400 font-normal">(optional)</span>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>
+                NEIGHBORHOOD <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span>
               </label>
-              <input
-                type="text"
-                value={neighborhood}
-                onChange={e => setNeighborhood(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                placeholder="Mission District"
-              />
+              <input type="text" value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
+                style={inputStyle} placeholder="Žižkov" />
             </div>
           </>
         )}
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+          <p className="text-sm rounded-full px-4 py-2.5" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+            {error}
+          </p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 active:scale-[0.98] transition disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+          style={{ background: '#1d9bf0' }}
         >
           {loading && <Loader2 size={16} className="animate-spin" />}
-          {step === 'account' ? 'Continue →' : 'Join Neighborhood'}
+          {step === 'account' ? 'Continue →' : 'Join Neighbr'}
         </button>
       </form>
 
       {step === 'account' && (
-        <p className="text-center text-sm text-gray-500 mt-6">
+        <p className="text-center text-sm mt-6" style={{ color: 'var(--text-2)' }}>
           Already have an account?{' '}
-          <Link href="/sign-in" className="font-medium text-green-600 hover:underline">
+          <Link href="/sign-in" className="font-bold hover:underline" style={{ color: '#1d9bf0' }}>
             Sign in
           </Link>
         </p>
@@ -210,7 +183,8 @@ export default function SignUpPage() {
         <button
           type="button"
           onClick={() => setStep('account')}
-          className="w-full text-center text-sm text-gray-500 mt-4 hover:text-gray-700 transition"
+          className="w-full text-center text-sm mt-4 transition hover:opacity-80"
+          style={{ color: 'var(--text-3)' }}
         >
           ← Back
         </button>
