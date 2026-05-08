@@ -9,7 +9,6 @@ export interface Profile {
   location: unknown | null  // geography type
   city: string | null
   neighborhood: string | null
-  is_verified: boolean
   full_name_locked?: boolean
   username_updated_at?: string | null
   created_at: string

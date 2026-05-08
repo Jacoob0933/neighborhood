@@ -40,7 +40,7 @@ export default async function ProfilePage({ params }: Props) {
       >
         <h1 className="text-base font-bold flex items-center gap-1" style={{ color: 'var(--text)' }}>
           {profile.full_name ?? profile.username}
-          {profile.is_verified && (
+          {profile.username === 'neighborhoodofficial' && (
             <svg viewBox="0 0 22 22" width="16" height="16" fill="none" style={{ flexShrink: 0 }}>
               <circle cx="11" cy="11" r="11" fill="#1d9bf0" />
               <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -75,7 +75,7 @@ export default async function ProfilePage({ params }: Props) {
 
         <h2 className="text-lg font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
           {profile.full_name ?? profile.username}
-          {profile.is_verified && (
+          {profile.username === 'neighborhoodofficial' && (
             <svg viewBox="0 0 22 22" width="20" height="20" fill="none" style={{ flexShrink: 0 }}>
               <circle cx="11" cy="11" r="11" fill="#1d9bf0" />
               <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

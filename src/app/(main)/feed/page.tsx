@@ -46,7 +46,7 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
     const authorIds = [...new Set(posts.map(p => p.author_id as string))]
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, city, neighborhood, is_verified')
+      .select('id, username, full_name, avatar_url, city, neighborhood')
       .in('id', authorIds)
 
     const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
