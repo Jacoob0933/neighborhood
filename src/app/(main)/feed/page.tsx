@@ -29,6 +29,16 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
   const { data: rawPosts, error } = await query
 
   if (error) {
+    // If it's an invalid enum value (e.g. category not yet in DB), show empty state
+    if (error.message.includes('invalid input value for enum')) {
+      return (
+        <div className="text-center py-20 px-6">
+          <p className="text-5xl mb-4">🚧</p>
+          <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>Coming soon</p>
+          <p className="text-sm" style={{ color: 'var(--text-2)' }}>This category is being set up. Check back in a moment.</p>
+        </div>
+      )
+    }
     return (
       <div className="text-center py-20 px-6">
         <p className="text-5xl mb-4">⚠️</p>
