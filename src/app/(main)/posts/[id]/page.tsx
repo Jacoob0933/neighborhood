@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { formatDistanceToNow, format } from 'date-fns'
 import Link from 'next/link'
-import { ArrowLeft, MapPin, Calendar } from 'lucide-react'
+import { ArrowLeft, MapPin, Calendar, Heart, MessageCircle } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
+import { EventAttendButton } from '@/components/events/EventAttendButton'
 import type { Post } from '@/types/database'
 
 interface PostPageProps {
@@ -43,41 +44,53 @@ export default async function PostPage({ params }: PostPageProps) {
   const event = p.events?.[0]
   const attending = event?.event_attendees?.some(a => a.user_id === user?.id)
   const attendeeCount = event?.event_attendees?.length ?? 0
+  const likeCount = post.post_likes?.length ?? 0
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <Link href="/feed" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-5 transition">
-        <ArrowLeft size={16} />
-        Back to feed
-      </Link>
+    <div>
+      {/* Header */}
+      <div
+        className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-md"
+        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+      >
+        <Link
+          href="/feed"
+          className="flex items-center justify-center w-9 h-9 rounded-full transition"
+          style={{ color: 'var(--text)' }}
+          onMouseEnter={undefined}
+        >
+          <ArrowLeft size={18} />
+        </Link>
+        <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Post</h1>
+      </div>
 
-      <article className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <article>
+        {/* Hero image */}
         {post.image_urls?.[0] && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.image_urls[0]} alt={post.title} className="w-full max-h-72 object-cover" />
+          <img
+            src={post.image_urls[0]}
+            alt={post.title}
+            className="w-full max-h-80 object-cover"
+            loading="lazy"
+          />
         )}
 
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <CategoryBadge category={post.category} />
-            {post.is_resolved && (
-              <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                ✓ Resolved
-              </span>
-            )}
-          </div>
-
-          <h1 className="text-xl font-bold text-gray-900 mb-2">{post.title}</h1>
-
+        <div className="px-4 py-4">
+          {/* Author row */}
           <div className="flex items-center gap-3 mb-4">
             <Link href={`/profile/${post.profiles?.id}`}>
               <Avatar src={post.profiles?.avatar_url} name={post.profiles?.full_name ?? post.profiles?.username} size="md" />
             </Link>
-            <div>
-              <Link href={`/profile/${post.profiles?.id}`} className="text-sm font-medium text-gray-900 hover:underline">
-                {post.profiles?.full_name ?? post.profiles?.username}
+            <div className="flex-1 min-w-0">
+              <Link
+                href={`/profile/${post.profiles?.id}`}
+                className="font-bold text-sm hover:underline block"
+                style={{ color: 'var(--text)' }}
+              >
+                {post.profiles?.full_name ?? post.profiles?.username ?? 'Anonymous'}
               </Link>
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
+              <div className="flex items-center gap-1.5 text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
                 {(post.neighborhood || post.city) && (
                   <>
                     <MapPin size={10} />
@@ -88,31 +101,40 @@ export default async function PostPage({ params }: PostPageProps) {
                 <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
               </div>
             </div>
-            {user && post.author_id !== user.id && (
-              <Link
-                href={`/messages/${post.profiles?.id}`}
-                className="ml-auto px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition"
-              >
-                Message
-              </Link>
-            )}
+            <CategoryBadge category={post.category} />
           </div>
 
-          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{post.body}</p>
+          {/* Title + body */}
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text)' }}>{post.title}</h2>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-2)' }}>{post.body}</p>
+
+          {/* Extra images */}
+          {post.image_urls && post.image_urls.length > 1 && (
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              {post.image_urls.slice(1).map((url: string, i: number) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={url} alt="" className="w-full h-28 object-cover rounded-xl" loading="lazy"
+                  style={{ border: '1px solid var(--border)' }} />
+              ))}
+            </div>
+          )}
 
           {/* Event card */}
           {event && (
-            <div className="mt-5 rounded-xl border border-purple-100 bg-purple-50 p-4">
+            <div
+              className="mt-5 rounded-xl p-4"
+              style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
+            >
               <div className="flex items-start gap-3">
-                <Calendar size={18} className="text-purple-600 shrink-0 mt-0.5" />
+                <Calendar size={18} style={{ color: '#1d9bf0' }} className="shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-purple-900">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                     {format(new Date(event.starts_at), 'EEEE, MMMM d · h:mm a')}
                   </p>
                   {event.location_name && (
-                    <p className="text-sm text-purple-700 mt-0.5">{event.location_name}</p>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--text-2)' }}>{event.location_name}</p>
                   )}
-                  <p className="text-xs text-purple-500 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
                     {attendeeCount} going
                     {event.max_attendees ? ` · ${event.max_attendees - attendeeCount} spots left` : ''}
                   </p>
@@ -129,20 +151,54 @@ export default async function PostPage({ params }: PostPageProps) {
             </div>
           )}
 
-          {/* Extra images */}
-          {post.image_urls && post.image_urls.length > 1 && (
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              {post.image_urls.slice(1).map((url: string, i: number) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={url} alt="" className="w-full h-24 object-cover rounded-xl" />
-              ))}
+          {/* Stats + actions */}
+          <div
+            className="flex items-center justify-between mt-5 pt-4"
+            style={{ borderTop: '1px solid var(--border)' }}
+          >
+            <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-3)' }}>
+              {likeCount > 0 && (
+                <span><strong style={{ color: 'var(--text)' }}>{likeCount}</strong> likes</span>
+              )}
             </div>
-          )}
+
+            <div className="flex items-center gap-2">
+              {/* Reply */}
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition"
+                style={{ color: 'var(--text-3)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#1d9bf0'; e.currentTarget.style.background = 'rgba(29,155,240,0.1)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent' }}
+              >
+                <MessageCircle size={16} />
+                <span>Reply</span>
+              </button>
+
+              {/* Like */}
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition"
+                style={{ color: 'var(--text-3)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#f91880'; e.currentTarget.style.background = 'rgba(249,24,128,0.1)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.background = 'transparent' }}
+              >
+                <Heart size={16} />
+                <span>Like</span>
+              </button>
+
+              {/* Message author */}
+              {user && post.author_id !== user.id && (
+                <Link
+                  href={`/messages/${post.profiles?.id}`}
+                  className="px-4 py-1.5 rounded-full text-sm font-bold transition hover:opacity-90"
+                  style={{ background: '#1d9bf0', color: 'white' }}
+                >
+                  Message
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
       </article>
     </div>
   )
 }
-
-// Client component for the attend/leave button
-import { EventAttendButton } from '@/components/events/EventAttendButton'
