@@ -18,7 +18,6 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
 
   type RawPost = Record<string, unknown>
 
-  // Step 1: fetch posts only (no joins — avoids schema cache issues)
   let query = supabase
     .from('posts')
     .select('*')
@@ -41,7 +40,6 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
 
   let posts: RawPost[] = rawPosts ?? []
 
-  // Step 2: enrich with profiles + likes separately
   if (posts.length > 0) {
     const authorIds = [...new Set(posts.map(p => p.author_id as string))]
     const { data: profiles } = await supabase
@@ -80,12 +78,12 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
     return (
       <div className="text-center py-20 px-6">
         <p className="text-5xl mb-4">🏡</p>
-        <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>No posts in your area yet.</p>
-        <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>Be the first to post something!</p>
+        <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>Nothing here yet</p>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-2)' }}>Be the first to post something!</p>
         <Link
           href="/posts/new"
-          className="inline-block px-6 py-2.5 rounded-full text-sm font-bold text-white transition hover:opacity-90"
-          style={{ background: '#1d9bf0' }}
+          className="inline-block px-6 py-2.5 rounded-full text-sm font-bold text-white hover:opacity-90 transition"
+          style={{ background: 'linear-gradient(135deg, #1d9bf0, #0d6efd)' }}
         >
           Create a post
         </Link>
@@ -100,6 +98,40 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
       ))}
       <FeedInfinite initialCursor={nextCursor} category={category} currentUserId={userId} />
     </>
+  )
+}
+
+function FeedSkeleton() {
+  return (
+    <div>
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="flex gap-3 px-4 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          {/* Avatar skeleton */}
+          <div className="skeleton w-10 h-10 rounded-full shrink-0" />
+          <div className="flex-1 space-y-2 pt-0.5">
+            {/* Name row */}
+            <div className="flex items-center gap-2">
+              <div className="skeleton h-3.5 rounded-full" style={{ width: '30%' }} />
+              <div className="skeleton h-3 rounded-full" style={{ width: '15%' }} />
+            </div>
+            {/* Title */}
+            <div className="skeleton h-3.5 rounded-full" style={{ width: '80%' }} />
+            {/* Body */}
+            <div className="skeleton h-3 rounded-full" style={{ width: '100%' }} />
+            <div className="skeleton h-3 rounded-full" style={{ width: '65%' }} />
+            {/* Image placeholder for some */}
+            {i % 3 === 0 && (
+              <div className="skeleton w-full rounded-xl mt-1" style={{ height: 160 }} />
+            )}
+            {/* Action row */}
+            <div className="flex gap-3 pt-1">
+              <div className="skeleton h-3 rounded-full w-8" />
+              <div className="skeleton h-3 rounded-full w-8" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -121,12 +153,15 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       {/* Sticky header */}
       <div
         className="sticky top-0 z-30 backdrop-blur-md"
-        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+        style={{ background: 'rgba(6,6,10,0.88)', borderBottom: '1px solid var(--border)' }}
       >
         <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-lg font-black" style={{ color: 'var(--text)' }}>Home</h1>
-          <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-3)' }}>
-            <MapPin size={11} />
+          <h1 className="text-lg font-black tracking-tight" style={{ color: 'var(--text)' }}>Home</h1>
+          <div
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
+            style={{ color: 'var(--text-2)', background: 'var(--bg-2)', border: '1px solid var(--border)' }}
+          >
+            <MapPin size={10} style={{ color: 'var(--accent)' }} />
             <span>{locationLabel}</span>
           </div>
         </div>
@@ -135,46 +170,32 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         </Suspense>
       </div>
 
-      {/* Quick compose */}
+      {/* Quick compose bar */}
       <Link
         href="/posts/new"
-        className="flex items-center gap-3 px-4 py-3 group transition-colors"
+        className="flex items-center gap-3 px-4 py-3.5 transition-colors"
         style={{ borderBottom: '1px solid var(--border)' }}
+        onMouseEnter={undefined}
       >
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: 'var(--bg-2)', color: 'var(--text-3)' }}
+          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-base"
+          style={{ background: 'var(--bg-2)' }}
         >
-          <span className="text-lg">✏️</span>
+          ✏️
         </div>
         <span className="text-sm flex-1" style={{ color: 'var(--text-3)' }}>
           What&apos;s happening in {locationLabel}?
         </span>
         <span
-          className="text-xs font-bold px-4 py-1.5 rounded-full shrink-0"
-          style={{ background: '#1d9bf0', color: 'white' }}
+          className="text-xs font-bold px-3.5 py-1.5 rounded-full shrink-0 text-white"
+          style={{ background: 'linear-gradient(135deg, #1d9bf0, #0d6efd)' }}
         >
           Post
         </span>
       </Link>
 
-      {/* Posts with skeleton loading */}
-      <Suspense
-        fallback={
-          <div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-                <div className="w-10 h-10 rounded-full shrink-0 animate-pulse" style={{ background: 'var(--bg-2)' }} />
-                <div className="flex-1 space-y-2.5 pt-1">
-                  <div className="h-3 rounded-full animate-pulse w-1/4" style={{ background: 'var(--bg-2)' }} />
-                  <div className="h-3 rounded-full animate-pulse w-full" style={{ background: 'var(--bg-2)' }} />
-                  <div className="h-3 rounded-full animate-pulse w-3/4" style={{ background: 'var(--bg-2)' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        }
-      >
+      {/* Feed posts */}
+      <Suspense fallback={<FeedSkeleton />}>
         {user && <FeedPosts category={params.category} userId={user.id} />}
       </Suspense>
     </div>

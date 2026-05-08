@@ -3,12 +3,29 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Post } from '@/types/database'
 import { PostCard } from './PostCard'
-import { Loader2 } from 'lucide-react'
 
 interface FeedInfiniteProps {
   initialCursor: string | null
   category?: string
   currentUserId: string
+}
+
+function LoadingDots() {
+  return (
+    <div className="flex justify-center items-center gap-1.5 py-8">
+      {[0, 1, 2].map(i => (
+        <div
+          key={i}
+          className="w-1.5 h-1.5 rounded-full"
+          style={{
+            background: 'var(--text-3)',
+            animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+          }}
+        />
+      ))}
+      <style>{`@keyframes bounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }`}</style>
+    </div>
+  )
 }
 
 export function FeedInfinite({ initialCursor, category, currentUserId }: FeedInfiniteProps) {
@@ -41,7 +58,7 @@ export function FeedInfinite({ initialCursor, category, currentUserId }: FeedInf
     if (!el) return
     const obs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) loadMore() },
-      { rootMargin: '200px' }
+      { rootMargin: '300px' }
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -53,18 +70,18 @@ export function FeedInfinite({ initialCursor, category, currentUserId }: FeedInf
         <PostCard key={post.id} post={post} currentUserId={currentUserId} />
       ))}
 
-      <div ref={sentinelRef} className="h-4" />
+      <div ref={sentinelRef} className="h-1" />
 
-      {loading && (
-        <div className="flex justify-center py-6">
-          <Loader2 size={20} className="animate-spin" style={{ color: 'var(--text-3)' }} />
-        </div>
-      )}
+      {loading && <LoadingDots />}
 
       {done && posts.length > 0 && (
-        <p className="text-center text-sm py-8" style={{ color: 'var(--text-3)' }}>
-          You&apos;ve seen all nearby posts
-        </p>
+        <div className="text-center py-10 px-6">
+          <div
+            className="inline-block w-10 h-0.5 rounded-full mb-3"
+            style={{ background: 'var(--border)' }}
+          />
+          <p className="text-xs" style={{ color: 'var(--text-3)' }}>You&apos;re all caught up</p>
+        </div>
       )}
     </>
   )

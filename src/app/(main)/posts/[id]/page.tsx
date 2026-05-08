@@ -17,7 +17,6 @@ export default async function PostPage({ params }: PostPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Minimal query — just the post itself, no joins
   const { data: post } = await supabase
     .from('posts')
     .select('*')
@@ -26,27 +25,23 @@ export default async function PostPage({ params }: PostPageProps) {
 
   if (!post) notFound()
 
-  // Fetch author profile separately
   const { data: profile } = await supabase
     .from('profiles')
     .select('id, username, full_name, avatar_url, city, neighborhood')
     .eq('id', post.author_id)
     .single()
 
-  // Fetch likes separately
   const { data: likes } = await supabase
     .from('post_likes')
     .select('user_id')
     .eq('post_id', id)
 
-  // Fetch linked event separately
   const { data: event } = await supabase
     .from('events')
     .select('id, starts_at, ends_at, location_name, max_attendees')
     .eq('post_id', id)
     .maybeSingle()
 
-  // Fetch attendees separately
   const { data: attendees } = event
     ? await supabase.from('event_attendees').select('user_id').eq('event_id', event.id)
     : { data: [] }
@@ -55,20 +50,22 @@ export default async function PostPage({ params }: PostPageProps) {
   const liked = likes?.some(l => l.user_id === user?.id) ?? false
   const attending = attendees?.some(a => a.user_id === user?.id) ?? false
   const attendeeCount = attendees?.length ?? 0
+  const isVerified = profile?.username === 'neighborhoodofficial'
+  const location = post.neighborhood || post.city
 
   return (
-    <div>
-      {/* Header */}
+    <div className="fade-in">
+      {/* Sticky header */}
       <div
         className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-md"
-        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+        style={{ background: 'rgba(6,6,10,0.88)', borderBottom: '1px solid var(--border)' }}
       >
         <Link
           href="/feed"
-          className="flex items-center justify-center w-9 h-9 rounded-full transition hover:opacity-80"
-          style={{ color: 'var(--text)' }}
+          className="tap flex items-center justify-center w-9 h-9 rounded-full transition"
+          style={{ color: 'var(--text)', background: 'var(--bg-2)' }}
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={17} />
         </Link>
         <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Post</h1>
       </div>
@@ -80,63 +77,81 @@ export default async function PostPage({ params }: PostPageProps) {
           <img
             src={post.image_urls[0]}
             alt={post.title}
-            className="w-full max-h-80 object-cover"
+            className="w-full object-cover"
             loading="lazy"
+            style={{ maxHeight: 360, objectFit: 'cover' }}
           />
         )}
 
         <div className="px-4 py-4">
+          {/* Category + location */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <CategoryBadge category={post.category} />
+            {location && (
+              <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-3)' }}>
+                <MapPin size={10} />
+                {location}
+              </span>
+            )}
+          </div>
+
+          {/* Title */}
+          <h2 className="text-xl font-bold leading-snug mb-4" style={{ color: 'var(--text)' }}>
+            {post.title}
+          </h2>
+
           {/* Author row */}
-          <div className="flex items-center gap-3 mb-4">
+          <div
+            className="flex items-center gap-3 py-3 mb-4"
+            style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}
+          >
             <Link href={`/profile/${profile?.id ?? post.author_id}`}>
-              <Avatar
-                src={profile?.avatar_url}
-                name={profile?.full_name ?? profile?.username}
-                size="md"
-              />
+              <Avatar src={profile?.avatar_url} name={profile?.full_name ?? profile?.username} size="md" />
             </Link>
             <div className="flex-1 min-w-0">
               <Link
                 href={`/profile/${profile?.id ?? post.author_id}`}
-                className="font-bold text-sm hover:underline inline-flex items-center gap-1"
+                className="font-semibold text-sm hover:underline inline-flex items-center gap-1"
                 style={{ color: 'var(--text)' }}
               >
                 {profile?.full_name ?? profile?.username ?? 'Anonymous'}
-                {profile?.username === 'neighborhoodofficial' && (
-                  <svg viewBox="0 0 22 22" width="16" height="16" fill="none" style={{ flexShrink: 0 }}>
+                {isVerified && (
+                  <svg viewBox="0 0 22 22" width="15" height="15" fill="none">
                     <circle cx="11" cy="11" r="11" fill="#1d9bf0" />
-                    <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
               </Link>
-              <div className="flex items-center gap-1.5 text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
-                {(post.neighborhood || post.city) && (
-                  <>
-                    <MapPin size={10} />
-                    <span>{post.neighborhood || post.city}</span>
-                    <span>·</span>
-                  </>
-                )}
-                <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
-              </div>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
+                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+              </p>
             </div>
-            <CategoryBadge category={post.category} />
+            {user && post.author_id !== user.id && (
+              <Link
+                href={`/messages/${profile?.id}`}
+                className="tap px-3.5 py-1.5 rounded-full text-xs font-semibold text-white transition hover:opacity-90"
+                style={{ background: 'var(--accent)' }}
+              >
+                Message
+              </Link>
+            )}
           </div>
 
-          {/* Title + body */}
-          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text)' }}>{post.title}</h2>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-2)' }}>{post.body}</p>
+          {/* Body */}
+          <p className="text-sm leading-relaxed whitespace-pre-wrap mb-4" style={{ color: 'var(--text-2)' }}>
+            {post.body}
+          </p>
 
-          {/* Extra images */}
+          {/* Extra images grid */}
           {post.image_urls && post.image_urls.length > 1 && (
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               {post.image_urls.slice(1).map((url: string, i: number) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={i} src={url} alt=""
-                  className="w-full h-28 object-cover rounded-xl"
+                  className="w-full object-cover"
                   loading="lazy"
-                  style={{ border: '1px solid var(--border)' }}
+                  style={{ borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', aspectRatio: '1' }}
                 />
               ))}
             </div>
@@ -145,11 +160,16 @@ export default async function PostPage({ params }: PostPageProps) {
           {/* Event card */}
           {event && (
             <div
-              className="mt-5 rounded-xl p-4"
+              className="rounded-2xl p-4 mb-4"
               style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
             >
               <div className="flex items-start gap-3">
-                <Calendar size={18} style={{ color: '#1d9bf0' }} className="shrink-0 mt-0.5" />
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(188,140,255,0.15)' }}
+                >
+                  <Calendar size={17} style={{ color: '#bc8cff' }} />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                     {format(new Date(event.starts_at), 'EEEE, MMMM d · h:mm a')}
@@ -174,7 +194,7 @@ export default async function PostPage({ params }: PostPageProps) {
             </div>
           )}
 
-          {/* Stats + actions */}
+          {/* Actions */}
           <PostActions
             postId={post.id}
             authorId={post.author_id}
