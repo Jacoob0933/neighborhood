@@ -40,7 +40,7 @@ export function SidebarNav() {
       >
         <div className="shrink-0"><NeighbrLogo size={34} /></div>
         <span className="hidden lg:block text-xl font-black whitespace-nowrap" style={{ color: 'var(--text)', letterSpacing: '-0.03em' }}>
-          neighbr
+          Neighborhood
         </span>
       </Link>
 

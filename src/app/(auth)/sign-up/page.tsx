@@ -80,7 +80,7 @@ export default function SignUpPage() {
   return (
     <>
       <h2 className="text-3xl font-black mb-2" style={{ color: 'var(--text)' }}>
-        {step === 'account' ? 'Join Neighbr' : 'Where are you?'}
+        {step === 'account' ? 'Join Neighborhood' : 'Where are you?'}
       </h2>
       <p className="text-sm mb-8" style={{ color: 'var(--text-2)' }}>
         {step === 'account'
@@ -166,7 +166,7 @@ export default function SignUpPage() {
           style={{ background: '#1d9bf0' }}
         >
           {loading && <Loader2 size={16} className="animate-spin" />}
-          {step === 'account' ? 'Continue →' : 'Join Neighbr'}
+          {step === 'account' ? 'Continue →' : 'Join Neighborhood'}
         </button>
       </form>
 

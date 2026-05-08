@@ -17,7 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Connect with your neighbors today.
           </p>
         </div>
-        <p className="text-sm" style={{ color: 'var(--text-3)' }}>© 2025 Neighbr</p>
+        <p className="text-sm" style={{ color: 'var(--text-3)' }}>© 2025 Neighborhood</p>
       </div>
 
       {/* Right - form */}

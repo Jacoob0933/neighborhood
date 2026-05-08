@@ -37,7 +37,7 @@ export default function SignInPage() {
   return (
     <>
       <h2 className="text-3xl font-black mb-2" style={{ color: 'var(--text)' }}>
-        Sign in to Neighbr
+        Sign in to Neighborhood
       </h2>
       <p className="text-sm mb-8" style={{ color: 'var(--text-2)' }}>
         Stay connected with your community
