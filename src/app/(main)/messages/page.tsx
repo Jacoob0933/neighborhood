@@ -9,7 +9,6 @@ export default async function MessagesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Get all conversations the user is in, with the other participant and last message
   const { data: participations } = await supabase
     .from('conversation_participants')
     .select(`
@@ -54,17 +53,25 @@ export default async function MessagesPage() {
     .filter(Boolean) ?? []
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold text-gray-900 mb-6">Messages</h1>
+    <div>
+      {/* Header */}
+      <div
+        className="sticky top-0 z-30 px-4 py-3 backdrop-blur-md"
+        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+      >
+        <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Messages</h1>
+      </div>
 
       {conversations.length === 0 ? (
-        <div className="text-center py-16">
-          <MessageCircle size={40} className="text-gray-200 mx-auto mb-3" />
-          <p className="font-medium text-gray-600">No messages yet.</p>
-          <p className="text-sm text-gray-400 mt-1">Start a conversation by messaging someone from a post.</p>
+        <div className="text-center py-20">
+          <MessageCircle size={40} className="mx-auto mb-3" style={{ color: 'var(--border)' }} />
+          <p className="font-semibold text-sm" style={{ color: 'var(--text-2)' }}>No messages yet.</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-3)' }}>
+            Start a conversation by messaging someone from a post.
+          </p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div>
           {conversations.map(item => {
             if (!item) return null
             const { conv, other, lastMessage } = item
@@ -74,7 +81,10 @@ export default async function MessagesPage() {
               <Link
                 key={conv.id}
                 href={`/messages/${other?.user_id}`}
-                className="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 transition"
+                style={{ borderBottom: '1px solid var(--border)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 <Avatar
                   src={otherProfile?.avatar_url}
@@ -83,16 +93,16 @@ export default async function MessagesPage() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between">
-                    <span className="font-semibold text-gray-900 truncate">
+                    <span className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>
                       {otherProfile?.full_name ?? otherProfile?.username ?? 'User'}
                     </span>
                     {lastMessage && (
-                      <span className="text-xs text-gray-400 shrink-0 ml-2">
+                      <span className="text-xs shrink-0 ml-2" style={{ color: 'var(--text-3)' }}>
                         {formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true })}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 truncate mt-0.5">
+                  <p className="text-sm truncate mt-0.5" style={{ color: 'var(--text-3)' }}>
                     {lastMessage
                       ? `${lastMessage.sender_id === user.id ? 'You: ' : ''}${lastMessage.body}`
                       : 'No messages yet'}

@@ -17,13 +17,17 @@ export function Avatar({ src, name, size = 'md' }: AvatarProps) {
       <img
         src={src}
         alt={name ?? ''}
-        className={`${sizes[size]} rounded-full object-cover bg-gray-100 shrink-0`}
+        className={`${sizes[size]} rounded-full object-cover shrink-0`}
+        style={{ background: 'var(--bg-2)' }}
       />
     )
   }
 
   return (
-    <div className={`${sizes[size]} rounded-full bg-green-100 text-green-700 font-semibold flex items-center justify-center shrink-0`}>
+    <div
+      className={`${sizes[size]} rounded-full font-semibold flex items-center justify-center shrink-0`}
+      style={{ background: 'rgba(29,155,240,0.18)', color: '#1d9bf0' }}
+    >
       {initials}
     </div>
   )

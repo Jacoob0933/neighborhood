@@ -32,13 +32,13 @@ export function EventAttendButton({ eventId, userId, attending: initialAttending
     <button
       onClick={toggle}
       disabled={loading || (full && !attending)}
-      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-        attending
-          ? 'bg-purple-600 text-white hover:bg-purple-700'
-          : full
-          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          : 'bg-white border border-purple-300 text-purple-700 hover:bg-purple-50'
-      }`}
+      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition"
+      style={attending
+        ? { background: '#1d9bf0', color: 'white' }
+        : full
+        ? { background: 'var(--bg-2)', color: 'var(--text-3)', cursor: 'not-allowed', border: '1px solid var(--border)' }
+        : { background: 'transparent', color: '#1d9bf0', border: '1px solid #1d9bf0' }
+      }
     >
       {loading && <Loader2 size={12} className="animate-spin" />}
       {attending ? 'Going ✓' : full ? 'Full' : 'Attend'}

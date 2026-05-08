@@ -30,12 +30,10 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Supabase Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${conversationId}`)
@@ -49,7 +47,6 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
         },
         async payload => {
           const newMsg = payload.new as ChatMessage
-          // Fetch sender profile
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url')
@@ -57,7 +54,6 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
             .single()
 
           setMessages(prev => {
-            // Avoid duplicates (we optimistically add our own messages)
             if (prev.some(m => m.id === newMsg.id)) return prev
             return [...prev, { ...newMsg, profiles: profile ?? undefined }]
           })
@@ -76,7 +72,6 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
     setSending(true)
     setBody('')
 
-    // Optimistic update
     const tempId = `temp-${Date.now()}`
     const optimistic: ChatMessage = {
       id: tempId,
@@ -93,7 +88,6 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
       .select()
       .single()
 
-    // Replace optimistic message with real one
     if (data) {
       setMessages(prev => prev.map(m => m.id === tempId ? (data as unknown as ChatMessage) : m))
     }
@@ -102,11 +96,11 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ background: 'var(--bg)' }}>
       {/* Messages list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
-          <p className="text-center text-sm text-gray-400 py-8">
+          <p className="text-center text-sm py-8" style={{ color: 'var(--text-3)' }}>
             Say hello to {otherUser.full_name ?? otherUser.username}!
           </p>
         )}
@@ -131,15 +125,18 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
 
               <div className={`group max-w-[72%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
                 <div
-                  className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    isMe
-                      ? 'bg-green-600 text-white rounded-br-sm'
-                      : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
-                  } ${msg.id.startsWith('temp-') ? 'opacity-60' : ''}`}
+                  className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.id.startsWith('temp-') ? 'opacity-60' : ''}`}
+                  style={isMe
+                    ? { background: '#1d9bf0', color: 'white', borderBottomRightRadius: '4px' }
+                    : { background: 'var(--bg-2)', color: 'var(--text)', border: '1px solid var(--border)', borderBottomLeftRadius: '4px' }
+                  }
                 >
                   {msg.body}
                 </div>
-                <span className="text-[10px] text-gray-400 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span
+                  className="text-[10px] px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color: 'var(--text-3)' }}
+                >
                   {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                 </span>
               </div>
@@ -153,20 +150,27 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
       {/* Input */}
       <form
         onSubmit={sendMessage}
-        className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-white"
+        className="flex items-center gap-2 px-4 py-3"
+        style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}
       >
         <input
           type="text"
           value={body}
           onChange={e => setBody(e.target.value)}
           placeholder={`Message ${otherUser.full_name ?? otherUser.username}…`}
-          className="flex-1 rounded-full border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+          className="flex-1 rounded-full px-4 py-2.5 text-sm focus:outline-none transition"
+          style={{
+            background: 'var(--bg-2)',
+            border: '1px solid var(--border)',
+            color: 'var(--text)',
+          }}
           autoFocus
         />
         <button
           type="submit"
           disabled={!body.trim() || sending}
-          className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center hover:bg-green-700 active:scale-95 transition disabled:opacity-50 disabled:scale-100 shrink-0"
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white active:scale-95 transition disabled:opacity-50 disabled:scale-100 shrink-0"
+          style={{ background: '#1d9bf0' }}
         >
           <Send size={16} />
         </button>

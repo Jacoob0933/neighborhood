@@ -6,6 +6,17 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, MapPin, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
+const inputStyle = {
+  background: 'var(--bg-2)',
+  border: '1px solid var(--border)',
+  color: 'var(--text)',
+  borderRadius: '12px',
+  padding: '12px 16px',
+  fontSize: '14px',
+  width: '100%',
+  outline: 'none',
+}
+
 export default function EditProfilePage() {
   const router = useRouter()
   const [fullName, setFullName] = useState('')
@@ -93,109 +104,141 @@ export default function EditProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="animate-spin text-green-600" size={28} />
+      <div className="flex items-center justify-center h-full py-20">
+        <Loader2 className="animate-spin" size={28} style={{ color: '#1d9bf0' }} />
       </div>
     )
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/profile/me" className="p-2 rounded-xl hover:bg-gray-100 transition text-gray-500">
-          <ArrowLeft size={20} />
+    <div>
+      {/* Header */}
+      <div
+        className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-md"
+        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+      >
+        <Link
+          href="/profile/me"
+          className="flex items-center justify-center w-9 h-9 rounded-full transition hover:opacity-80"
+          style={{ color: 'var(--text)' }}
+        >
+          <ArrowLeft size={18} />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">Edit Profile</h1>
+        <div>
+          <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Edit Profile</h1>
+        </div>
+        <div className="flex-1" />
+        <button
+          form="edit-form"
+          type="submit"
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+          style={{ background: '#1d9bf0' }}
+        >
+          {saving && <Loader2 size={14} className="animate-spin" />}
+          Save
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="edit-form" onSubmit={handleSubmit} className="px-4 py-5 space-y-5">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>FULL NAME</label>
             <input
               type="text"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              style={inputStyle}
+              placeholder="Your name"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>USERNAME</label>
             <input
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
               required
               minLength={3}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              style={inputStyle}
+              placeholder="username"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Bio</label>
+          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>BIO</label>
           <textarea
             value={bio}
             onChange={e => setBio(e.target.value)}
             rows={3}
             maxLength={200}
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition resize-none"
+            style={{ ...inputStyle, resize: 'none' }}
             placeholder="Tell your neighbors about yourself…"
           />
-          <p className="text-xs text-gray-400 mt-1 text-right">{bio.length}/200</p>
+          <p className="text-xs mt-1 text-right" style={{ color: 'var(--text-3)' }}>{bio.length}/200</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>CITY</label>
             <input
               type="text"
               value={city}
               onChange={e => setCity(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              style={inputStyle}
+              placeholder="Prague"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Neighborhood</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>NEIGHBORHOOD</label>
             <input
               type="text"
               value={neighborhood}
               onChange={e => setNeighborhood(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              style={inputStyle}
+              placeholder="Žižkov"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Precise GPS location</label>
+          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>GPS LOCATION</label>
           <button
             type="button"
             onClick={detectLocation}
             disabled={detectingLocation}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition ${
-              coords
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-green-300'
-            }`}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
+            style={{
+              background: coords ? 'rgba(29,155,240,0.12)' : 'var(--bg-2)',
+              border: `1px solid ${coords ? '#1d9bf0' : 'var(--border)'}`,
+              color: coords ? '#1d9bf0' : 'var(--text-2)',
+            }}
           >
             {detectingLocation ? <Loader2 size={15} className="animate-spin" /> : <MapPin size={15} />}
             {coords ? `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : 'Update GPS location'}
           </button>
         </div>
 
-        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        {error && (
+          <p className="text-sm rounded-xl px-4 py-3" style={{ background: 'rgba(249,24,128,0.1)', color: '#f91880' }}>
+            {error}
+          </p>
+        )}
 
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-3 pt-1">
           <Link
             href="/profile/me"
-            className="flex-1 text-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+            className="flex-1 text-center rounded-full px-4 py-3 text-sm font-bold transition hover:opacity-80"
+            style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 active:scale-[0.98] transition disabled:opacity-60"
+            className="flex-1 flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+            style={{ background: '#1d9bf0' }}
           >
             {saving && <Loader2 size={16} className="animate-spin" />}
             Save changes
