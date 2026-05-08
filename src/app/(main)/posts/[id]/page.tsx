@@ -7,7 +7,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import { EventAttendButton } from '@/components/events/EventAttendButton'
 import { PostActions } from '@/components/posts/PostActions'
-import type { Post } from '@/types/database'
 
 interface PostPageProps {
   params: Promise<{ id: string }>
@@ -18,33 +17,36 @@ export default async function PostPage({ params }: PostPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: post } = await supabase
+  // Simple query — no deep nesting that can break PostgREST
+  const { data: post, error } = await supabase
     .from('posts')
     .select(`
       *,
       profiles(id, username, full_name, avatar_url, city, neighborhood),
-      post_likes(user_id),
-      events(id, starts_at, ends_at, location_name, max_attendees, event_attendees(user_id))
+      post_likes(user_id)
     `)
     .eq('id', id)
     .single()
 
-  if (!post) notFound()
+  if (error || !post) notFound()
 
-  const p = post as Post & {
-    events?: {
-      id: string
-      starts_at: string
-      ends_at: string | null
-      location_name: string | null
-      max_attendees: number | null
-      event_attendees: { user_id: string }[]
-    }[]
-  }
+  // Fetch linked event separately (if any)
+  const { data: event } = await supabase
+    .from('events')
+    .select('id, starts_at, ends_at, location_name, max_attendees')
+    .eq('post_id', id)
+    .maybeSingle()
 
-  const event = p.events?.[0]
-  const attending = event?.event_attendees?.some(a => a.user_id === user?.id)
-  const attendeeCount = event?.event_attendees?.length ?? 0
+  // Fetch attendees separately
+  const { data: attendees } = event
+    ? await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', event.id)
+    : { data: null }
+
+  const attending = attendees?.some(a => a.user_id === user?.id) ?? false
+  const attendeeCount = attendees?.length ?? 0
   const likeCount = post.post_likes?.length ?? 0
   const liked = post.post_likes?.some((l: { user_id: string }) => l.user_id === user?.id) ?? false
 
@@ -57,9 +59,8 @@ export default async function PostPage({ params }: PostPageProps) {
       >
         <Link
           href="/feed"
-          className="flex items-center justify-center w-9 h-9 rounded-full transition"
+          className="flex items-center justify-center w-9 h-9 rounded-full transition hover:opacity-80"
           style={{ color: 'var(--text)' }}
-          onMouseEnter={undefined}
         >
           <ArrowLeft size={18} />
         </Link>
@@ -82,7 +83,11 @@ export default async function PostPage({ params }: PostPageProps) {
           {/* Author row */}
           <div className="flex items-center gap-3 mb-4">
             <Link href={`/profile/${post.profiles?.id}`}>
-              <Avatar src={post.profiles?.avatar_url} name={post.profiles?.full_name ?? post.profiles?.username} size="md" />
+              <Avatar
+                src={post.profiles?.avatar_url}
+                name={post.profiles?.full_name ?? post.profiles?.username}
+                size="md"
+              />
             </Link>
             <div className="flex-1 min-w-0">
               <Link
@@ -115,8 +120,14 @@ export default async function PostPage({ params }: PostPageProps) {
             <div className="grid grid-cols-3 gap-2 mt-4">
               {post.image_urls.slice(1).map((url: string, i: number) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={url} alt="" className="w-full h-28 object-cover rounded-xl" loading="lazy"
-                  style={{ border: '1px solid var(--border)' }} />
+                <img
+                  key={i}
+                  src={url}
+                  alt=""
+                  className="w-full h-28 object-cover rounded-xl"
+                  loading="lazy"
+                  style={{ border: '1px solid var(--border)' }}
+                />
               ))}
             </div>
           )}
@@ -145,7 +156,7 @@ export default async function PostPage({ params }: PostPageProps) {
                   <EventAttendButton
                     eventId={event.id}
                     userId={user.id}
-                    attending={!!attending}
+                    attending={attending}
                     full={!!event.max_attendees && attendeeCount >= event.max_attendees && !attending}
                   />
                 )}
