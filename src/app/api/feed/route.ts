@@ -47,7 +47,6 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE + 1)
 
-    if (profile?.city) query = query.eq('city', profile.city)
     if (category && category !== 'all') query = query.eq('category', category as PostCategory)
     if (cursor) query = query.lt('created_at', cursor)
 

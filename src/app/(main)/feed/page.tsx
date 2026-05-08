@@ -49,7 +49,6 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE + 1)
 
-    if (profile?.city) query = query.eq('city', profile.city)
     if (category && category !== 'all') query = query.eq('category', category as PostCategory)
 
     const { data } = await query
