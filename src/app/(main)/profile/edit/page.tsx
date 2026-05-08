@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, MapPin, ArrowLeft } from 'lucide-react'
+import { Loader2, MapPin, ArrowLeft, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { differenceInDays, addDays, format } from 'date-fns'
 
 const inputStyle = {
   background: 'var(--bg-2)',
@@ -15,6 +16,12 @@ const inputStyle = {
   fontSize: '14px',
   width: '100%',
   outline: 'none',
+}
+
+const lockedStyle = {
+  ...inputStyle,
+  opacity: 0.5,
+  cursor: 'not-allowed',
 }
 
 export default function EditProfilePage() {
@@ -29,6 +36,10 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Lock state
+  const [fullNameLocked, setFullNameLocked] = useState(false)
+  const [usernameUpdatedAt, setUsernameUpdatedAt] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -48,11 +59,21 @@ export default function EditProfilePage() {
         setBio(profile.bio ?? '')
         setCity(profile.city ?? '')
         setNeighborhood(profile.neighborhood ?? '')
+        setFullNameLocked(profile.full_name_locked ?? false)
+        setUsernameUpdatedAt(profile.username_updated_at ?? null)
       }
       setLoading(false)
     }
     load()
   }, [router])
+
+  // Username cooldown: can change every 3 days
+  const usernameCanChange = !usernameUpdatedAt ||
+    differenceInDays(new Date(), new Date(usernameUpdatedAt)) >= 3
+
+  const usernameNextChange = usernameUpdatedAt
+    ? addDays(new Date(usernameUpdatedAt), 3)
+    : null
 
   function detectLocation() {
     setDetectingLocation(true)
@@ -75,12 +96,24 @@ export default function EditProfilePage() {
     if (!user) return
 
     const update: Record<string, unknown> = {
-      full_name: fullName,
-      username,
       bio,
       city,
       neighborhood,
       updated_at: new Date().toISOString(),
+    }
+
+    // Full name — only save if not locked
+    if (!fullNameLocked) {
+      update.full_name = fullName
+      if (fullName.trim()) {
+        update.full_name_locked = true
+      }
+    }
+
+    // Username — only save if cooldown passed
+    if (usernameCanChange) {
+      update.username = username
+      update.username_updated_at = new Date().toISOString()
     }
 
     if (coords) {
@@ -124,9 +157,7 @@ export default function EditProfilePage() {
         >
           <ArrowLeft size={18} />
         </Link>
-        <div>
-          <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Edit Profile</h1>
-        </div>
+        <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Edit Profile</h1>
         <div className="flex-1" />
         <button
           form="edit-form"
@@ -142,30 +173,61 @@ export default function EditProfilePage() {
 
       <form id="edit-form" onSubmit={handleSubmit} className="px-4 py-5 space-y-5">
         <div className="grid grid-cols-2 gap-3">
+
+          {/* Full name */}
           <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>FULL NAME</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-3)' }}>FULL NAME</label>
+              {fullNameLocked && (
+                <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-3)' }}>
+                  <Lock size={10} /> permanent
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              style={inputStyle}
+              onChange={e => !fullNameLocked && setFullName(e.target.value)}
+              readOnly={fullNameLocked}
+              style={fullNameLocked ? lockedStyle : inputStyle}
               placeholder="Your name"
             />
+            {!fullNameLocked && fullName.trim() && (
+              <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+                ⚠️ After saving, this cannot be changed
+              </p>
+            )}
           </div>
+
+          {/* Username */}
           <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>USERNAME</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-3)' }}>USERNAME</label>
+              {!usernameCanChange && usernameNextChange && (
+                <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-3)' }}>
+                  <Lock size={10} /> {format(usernameNextChange, 'MMM d')}
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={username}
-              onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              onChange={e => usernameCanChange && setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              readOnly={!usernameCanChange}
               required
               minLength={3}
-              style={inputStyle}
+              style={!usernameCanChange ? lockedStyle : inputStyle}
               placeholder="username"
             />
+            {!usernameCanChange && usernameNextChange && (
+              <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+                Can change on {format(usernameNextChange, 'MMMM d')}
+              </p>
+            )}
           </div>
         </div>
 
+        {/* Bio */}
         <div>
           <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>BIO</label>
           <textarea
@@ -179,6 +241,7 @@ export default function EditProfilePage() {
           <p className="text-xs mt-1 text-right" style={{ color: 'var(--text-3)' }}>{bio.length}/200</p>
         </div>
 
+        {/* City + Neighborhood */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>CITY</label>
@@ -202,6 +265,7 @@ export default function EditProfilePage() {
           </div>
         </div>
 
+        {/* GPS */}
         <div>
           <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>GPS LOCATION</label>
           <button
