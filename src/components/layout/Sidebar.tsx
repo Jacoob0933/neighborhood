@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, CalendarDays, MessageCircle, User, LogOut, PlusCircle } from 'lucide-react'
+import { Home, CalendarDays, MessageCircle, User, LogOut, PenLine } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NeighbrLogo } from '@/components/ui/NeighbrLogo'
 
@@ -25,18 +25,11 @@ export function SidebarNav() {
   }
 
   return (
-    /*
-     * sticky + h-screen so nav stays fixed while feed scrolls.
-     * On md: 72px icon-only, right-aligned content.
-     * On lg: 240px with labels.
-     */
-    <nav
-      className="sticky top-0 h-screen flex flex-col py-3 px-1 lg:px-3 overflow-hidden w-[72px] lg:w-[240px]"
-    >
+    <nav className="sticky top-0 h-screen flex flex-col py-4 px-2 lg:px-4 overflow-hidden w-[72px] lg:w-[248px]">
       {/* Logo */}
       <Link
         href="/feed"
-        className="flex items-center justify-center lg:justify-start gap-3 w-12 lg:w-auto h-12 rounded-full mb-2 hover:opacity-80 transition"
+        className="flex items-center justify-center lg:justify-start gap-3 w-11 lg:w-auto h-11 rounded-2xl mb-4 hover:opacity-80 transition shrink-0"
       >
         <div className="shrink-0"><NeighbrLogo size={34} /></div>
         <span className="hidden lg:block text-xl font-black whitespace-nowrap" style={{ color: 'var(--text)', letterSpacing: '-0.03em' }}>
@@ -47,22 +40,30 @@ export function SidebarNav() {
       {/* Nav links */}
       <div className="flex-1 flex flex-col gap-0.5">
         {links.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || (href === '/feed' && pathname.startsWith('/feed'))
+          const active = pathname === href || (href === '/feed' && (pathname === '/feed' || pathname.startsWith('/feed?') || pathname.startsWith('/posts/')))
           return (
             <Link
               key={href}
               href={href}
               title={label}
-              className="flex items-center justify-center lg:justify-start gap-4 w-12 lg:w-auto h-12 lg:h-auto lg:px-4 lg:py-3 rounded-full transition"
+              className="flex items-center justify-center lg:justify-start gap-3.5 w-11 h-11 lg:w-auto lg:h-auto lg:px-3 lg:py-2.5 rounded-xl transition group"
               style={{
-                background: active ? 'var(--bg-hover)' : 'transparent',
+                background: active ? 'var(--bg-3)' : 'transparent',
                 color: active ? 'var(--text)' : 'var(--text-2)',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = active ? 'var(--bg-hover)' : 'transparent')}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--bg-hover)' }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
             >
-              <Icon size={22} strokeWidth={active ? 2.5 : 1.8} className="shrink-0" />
-              <span className="hidden lg:block text-base font-medium">{label}</span>
+              <div className="relative shrink-0">
+                <Icon size={21} strokeWidth={active ? 2.5 : 1.8} />
+                {active && (
+                  <span
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full hidden lg:block"
+                    style={{ background: 'var(--accent)' }}
+                  />
+                )}
+              </div>
+              <span className={`hidden lg:block text-sm ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
             </Link>
           )
         })}
@@ -72,10 +73,10 @@ export function SidebarNav() {
       <Link
         href="/posts/new"
         title="New post"
-        className="flex items-center justify-center lg:justify-start gap-2 w-12 lg:w-full h-12 lg:h-auto lg:px-5 lg:py-3 rounded-full mb-2 font-bold text-white transition hover:opacity-90"
-        style={{ background: '#1d9bf0' }}
+        className="flex items-center justify-center lg:justify-start gap-2.5 w-11 h-11 lg:w-full lg:h-auto lg:px-4 lg:py-3 rounded-xl mb-3 font-bold text-white text-sm transition hover:opacity-90 shrink-0"
+        style={{ background: 'linear-gradient(135deg, #1d9bf0, #0d6efd)' }}
       >
-        <PlusCircle size={20} className="shrink-0" />
+        <PenLine size={18} strokeWidth={2} className="shrink-0" />
         <span className="hidden lg:block">New Post</span>
       </Link>
 
@@ -83,13 +84,13 @@ export function SidebarNav() {
       <button
         onClick={signOut}
         title="Sign out"
-        className="flex items-center justify-center lg:justify-start gap-4 w-12 lg:w-auto h-12 lg:h-auto lg:px-4 lg:py-3 rounded-full transition"
+        className="flex items-center justify-center lg:justify-start gap-3.5 w-11 h-11 lg:w-auto lg:h-auto lg:px-3 lg:py-2.5 rounded-xl transition shrink-0"
         style={{ color: 'var(--text-3)' }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; (e.currentTarget.style.color = 'var(--text-2)') }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; (e.currentTarget.style.color = 'var(--text-3)') }}
       >
-        <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
-        <span className="hidden lg:block text-sm">Sign out</span>
+        <LogOut size={18} strokeWidth={1.8} className="shrink-0" />
+        <span className="hidden lg:block text-sm font-medium">Sign out</span>
       </button>
     </nav>
   )

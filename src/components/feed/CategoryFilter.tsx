@@ -4,10 +4,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 const categories = [
   { value: 'all', label: 'For You' },
-  { value: 'general', label: 'General' },
-  { value: 'events', label: 'Events' },
-  { value: 'marketplace', label: 'Marketplace' },
-  { value: 'lost_found', label: 'Lost & Found' },
+  { value: 'general', label: '💬 General' },
+  { value: 'events', label: '🎉 Events' },
+  { value: 'marketplace', label: '🛍️ Marketplace' },
+  { value: 'lost_found', label: '🔍 Lost & Found' },
 ]
 
 export function CategoryFilter() {
@@ -24,27 +24,30 @@ export function CategoryFilter() {
 
   return (
     <div className="flex overflow-x-auto no-scrollbar" style={{ borderBottom: '1px solid var(--border)' }}>
-      {categories.map(({ value, label }) => (
-        <button
-          key={value}
-          onClick={() => select(value)}
-          className="relative shrink-0 px-5 py-4 text-sm font-medium transition-colors"
-          style={{
-            color: current === value ? 'var(--text)' : 'var(--text-2)',
-            fontWeight: current === value ? 700 : 500,
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        >
-          {label}
-          {current === value && (
-            <span
-              className="absolute bottom-0 left-4 right-4 h-1 rounded-full"
-              style={{ background: '#1d9bf0' }}
-            />
-          )}
-        </button>
-      ))}
+      {categories.map(({ value, label }) => {
+        const active = current === value
+        return (
+          <button
+            key={value}
+            onClick={() => select(value)}
+            className="relative shrink-0 px-4 py-3.5 text-sm transition-colors"
+            style={{
+              color: active ? 'var(--text)' : 'var(--text-3)',
+              fontWeight: active ? 600 : 400,
+            }}
+            onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-2)' }}
+            onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-3)' }}
+          >
+            {label}
+            {active && (
+              <span
+                className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full"
+                style={{ background: 'var(--accent)' }}
+              />
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
