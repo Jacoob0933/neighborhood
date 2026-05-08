@@ -8,6 +8,7 @@ const categories = [
   { value: 'events', label: '🎉 Events' },
   { value: 'marketplace', label: '🛍️ Marketplace' },
   { value: 'lost_found', label: '🔍 Lost & Found' },
+  { value: 'promo', label: '📢 Promo' },
 ]
 
 export function CategoryFilter() {

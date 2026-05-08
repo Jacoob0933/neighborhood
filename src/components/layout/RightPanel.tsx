@@ -7,6 +7,7 @@ const categories = [
   { emoji: '🎉', label: 'Events',      href: '/feed?category=events',      color: '#bc8cff' },
   { emoji: '🛍️', label: 'Marketplace', href: '/feed?category=marketplace', color: '#e3b341' },
   { emoji: '🔍', label: 'Lost & Found',href: '/feed?category=lost_found',  color: '#f78166' },
+  { emoji: '📢', label: 'Promo',       href: '/feed?category=promo',       color: '#3fb950' },
 ]
 
 function CategoryLink({ emoji, label, href, color }: typeof categories[0]) {

@@ -7,11 +7,12 @@ import { Loader2, MapPin, X, Image as ImageIcon } from 'lucide-react'
 import type { PostCategory } from '@/types/database'
 import imageCompression from 'browser-image-compression'
 
-const CATEGORIES: { value: PostCategory; label: string; emoji: string }[] = [
-  { value: 'general', label: 'General', emoji: '💬' },
-  { value: 'events', label: 'Event', emoji: '🎉' },
+const CATEGORIES: { value: PostCategory; label: string; emoji: string; desc?: string }[] = [
+  { value: 'general',     label: 'General',     emoji: '💬' },
+  { value: 'events',      label: 'Event',       emoji: '🎉' },
   { value: 'marketplace', label: 'Marketplace', emoji: '🛍️' },
-  { value: 'lost_found', label: 'Lost & Found', emoji: '🔍' },
+  { value: 'lost_found',  label: 'Lost & Found',emoji: '🔍' },
+  { value: 'promo',       label: 'Promo',       emoji: '📢', desc: 'Business, barber, café...' },
 ]
 
 const inputStyle = {
@@ -194,15 +195,22 @@ export default function NewPostPage() {
                 key={cat.value}
                 type="button"
                 onClick={() => setCategory(cat.value)}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition text-sm font-medium"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition"
                 style={{
                   border: `1px solid ${active ? '#1d9bf0' : 'var(--border)'}`,
                   background: active ? 'rgba(29,155,240,0.1)' : 'var(--bg-2)',
                   color: active ? '#1d9bf0' : 'var(--text-2)',
                 }}
               >
-                <span className="text-base">{cat.emoji}</span>
-                {cat.label}
+                <span className="text-base shrink-0">{cat.emoji}</span>
+                <div>
+                  <div className="text-sm font-medium">{cat.label}</div>
+                  {cat.desc && (
+                    <div className="text-xs mt-0.5" style={{ color: active ? 'rgba(29,155,240,0.7)' : 'var(--text-3)', fontWeight: 400 }}>
+                      {cat.desc}
+                    </div>
+                  )}
+                </div>
               </button>
             )
           })}

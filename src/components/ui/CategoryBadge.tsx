@@ -5,6 +5,7 @@ const config: Record<PostCategory, { label: string; emoji: string; color: string
   events:      { label: 'Event',       emoji: '🎉', color: '#bc8cff', bg: 'rgba(188,140,255,0.12)' },
   marketplace: { label: 'Marketplace', emoji: '🛍️', color: '#e3b341', bg: 'rgba(227,179,65,0.12)' },
   lost_found:  { label: 'Lost & Found',emoji: '🔍', color: '#f78166', bg: 'rgba(247,129,102,0.12)' },
+  promo:       { label: 'Promo',       emoji: '📢', color: '#3fb950', bg: 'rgba(63,185,80,0.12)'  },
 }
 
 export function CategoryBadge({ category }: { category: PostCategory }) {

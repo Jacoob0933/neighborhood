@@ -1,4 +1,4 @@
-export type PostCategory = 'general' | 'events' | 'marketplace' | 'lost_found'
+export type PostCategory = 'general' | 'events' | 'marketplace' | 'lost_found' | 'promo'
 
 export interface Profile {
   id: string
