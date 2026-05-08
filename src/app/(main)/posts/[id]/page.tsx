@@ -29,7 +29,7 @@ export default async function PostPage({ params }: PostPageProps) {
   // Fetch author profile separately
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, username, full_name, avatar_url, city, neighborhood')
+    .select('id, username, full_name, avatar_url, city, neighborhood, is_verified')
     .eq('id', post.author_id)
     .single()
 
@@ -98,10 +98,16 @@ export default async function PostPage({ params }: PostPageProps) {
             <div className="flex-1 min-w-0">
               <Link
                 href={`/profile/${profile?.id ?? post.author_id}`}
-                className="font-bold text-sm hover:underline block"
+                className="font-bold text-sm hover:underline inline-flex items-center gap-1"
                 style={{ color: 'var(--text)' }}
               >
                 {profile?.full_name ?? profile?.username ?? 'Anonymous'}
+                {(profile as { is_verified?: boolean })?.is_verified && (
+                  <svg viewBox="0 0 22 22" width="16" height="16" fill="none" style={{ flexShrink: 0 }}>
+                    <circle cx="11" cy="11" r="11" fill="#1d9bf0" />
+                    <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
               </Link>
               <div className="flex items-center gap-1.5 text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
                 {(post.neighborhood || post.city) && (

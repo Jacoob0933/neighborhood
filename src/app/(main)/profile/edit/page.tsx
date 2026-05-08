@@ -126,7 +126,11 @@ export default function EditProfilePage() {
       .eq('id', user.id)
 
     if (updateError) {
-      setError(updateError.message)
+      if (updateError.message.includes('profiles_username_unique') || updateError.message.includes('duplicate key')) {
+        setError('This username is already taken. Please choose a different one.')
+      } else {
+        setError(updateError.message)
+      }
       setSaving(false)
       return
     }

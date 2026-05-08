@@ -38,8 +38,14 @@ export default async function ProfilePage({ params }: Props) {
         className="sticky top-0 z-30 px-4 py-3 backdrop-blur-md"
         style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
       >
-        <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>
+        <h1 className="text-base font-bold flex items-center gap-1" style={{ color: 'var(--text)' }}>
           {profile.full_name ?? profile.username}
+          {profile.is_verified && (
+            <svg viewBox="0 0 22 22" width="16" height="16" fill="none" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="11" fill="#1d9bf0" />
+              <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
         </h1>
         <p className="text-xs" style={{ color: 'var(--text-3)' }}>{posts?.length ?? 0} posts</p>
       </div>
@@ -67,8 +73,14 @@ export default async function ProfilePage({ params }: Props) {
           )}
         </div>
 
-        <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+        <h2 className="text-lg font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
           {profile.full_name ?? profile.username}
+          {profile.is_verified && (
+            <svg viewBox="0 0 22 22" width="20" height="20" fill="none" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="11" fill="#1d9bf0" />
+              <path d="M7 11.5l2.8 2.8 5.2-5.6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
         </h2>
         <p className="text-sm" style={{ color: 'var(--text-3)' }}>@{profile.username}</p>
 
