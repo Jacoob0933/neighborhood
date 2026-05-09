@@ -5,6 +5,10 @@ import { MessageCircle, PenSquare } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { MessagesListRealtime } from '@/components/messages/MessagesListRealtime'
 
+// Always render fresh - never cache
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function MessagesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
