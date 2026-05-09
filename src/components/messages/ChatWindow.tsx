@@ -44,6 +44,7 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
   const [messages, setMessages] = useState(initialMessages)
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
@@ -84,6 +85,7 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
     const text = body.trim()
     if (!text || sending) return
     setSending(true)
+    setErrorMsg(null)
     setBody('')
 
     const tempId = `temp-${Date.now()}`
@@ -95,12 +97,18 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
       created_at: new Date().toISOString(),
     }])
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .insert({ conversation_id: conversationId, sender_id: currentUserId, body: text })
       .select().single()
 
-    if (data) {
+    if (error) {
+      console.error('Failed to send message:', error)
+      setErrorMsg(error.message)
+      // Remove the optimistic message
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setBody(text) // Restore text so user can retry
+    } else if (data) {
       setMessages(prev => prev.map(m => m.id === tempId ? (data as unknown as ChatMessage) : m))
     }
     setSending(false)
@@ -197,6 +205,13 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
 
         <div ref={bottomRef} className="h-1" />
       </div>
+
+      {/* Error banner */}
+      {errorMsg && (
+        <div className="px-4 py-2 text-xs" style={{ background: 'rgba(249,24,128,0.15)', color: '#f91880', borderTop: '1px solid rgba(249,24,128,0.3)' }}>
+          ⚠️ {errorMsg}
+        </div>
+      )}
 
       {/* Input bar */}
       <form
