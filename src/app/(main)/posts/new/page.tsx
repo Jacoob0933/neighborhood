@@ -94,6 +94,34 @@ export default function NewPostPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/sign-in'); return }
 
+    // Anti-spam: max 5 posts per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count: recentCount } = await supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('author_id', user.id)
+      .gte('created_at', oneHourAgo)
+
+    if ((recentCount ?? 0) >= 5) {
+      setError('Posting too fast — max 5 posts per hour. Try again later.')
+      setLoading(false)
+      return
+    }
+
+    // Anti-spam: 30s cooldown between posts
+    const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString()
+    const { count: veryRecentCount } = await supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('author_id', user.id)
+      .gte('created_at', thirtySecondsAgo)
+
+    if ((veryRecentCount ?? 0) >= 1) {
+      setError('Please wait 30 seconds before posting again.')
+      setLoading(false)
+      return
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('city, neighborhood')

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, PenSquare } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 
 export default async function MessagesPage() {
@@ -9,110 +9,140 @@ export default async function MessagesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: participations } = await supabase
+  // Step 1: get conversation IDs for this user
+  const { data: myParticipations } = await supabase
     .from('conversation_participants')
-    .select(`
-      conversation_id,
-      conversations(
-        id,
-        created_at,
-        conversation_participants(
-          user_id,
-          profiles(id, username, full_name, avatar_url)
-        ),
-        messages(id, body, created_at, sender_id)
-      )
-    `)
+    .select('conversation_id')
     .eq('user_id', user.id)
-    .order('conversation_id', { ascending: false })
 
-  type ConvRow = {
-    conversation_id: string
-    conversations: {
-      id: string
-      created_at: string
-      conversation_participants: {
-        user_id: string
-        profiles: { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
-      }[]
-      messages: { id: string; body: string; created_at: string; sender_id: string }[]
-    } | null
+  const convIds = (myParticipations ?? []).map(p => p.conversation_id)
+
+  if (convIds.length === 0) {
+    return <EmptyState />
   }
 
-  const conversations = (participations as ConvRow[] | null)
-    ?.map(p => {
-      const conv = p.conversations
-      if (!conv) return null
-      const other = conv.conversation_participants.find(cp => cp.user_id !== user.id)
-      const messages = [...(conv.messages ?? [])].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  // Step 2: get all participants in those conversations
+  const { data: allParticipants } = await supabase
+    .from('conversation_participants')
+    .select('conversation_id, user_id')
+    .in('conversation_id', convIds)
+
+  // Step 3: get profiles for all other users
+  const otherUserIds = [...new Set(
+    (allParticipants ?? [])
+      .filter(p => p.user_id !== user.id)
+      .map(p => p.user_id)
+  )]
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url')
+    .in('id', otherUserIds)
+
+  const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+
+  // Step 4: get last message for each conversation
+  const { data: allMessages } = await supabase
+    .from('messages')
+    .select('id, conversation_id, sender_id, body, created_at')
+    .in('conversation_id', convIds)
+    .order('created_at', { ascending: false })
+
+  // Group: last message per conversation
+  const lastMsgMap: Record<string, typeof allMessages extends (infer T)[] | null ? T : never> = {}
+  for (const msg of allMessages ?? []) {
+    if (!lastMsgMap[msg.conversation_id]) lastMsgMap[msg.conversation_id] = msg
+  }
+
+  // Build conversation list
+  const conversations = convIds
+    .map(convId => {
+      const otherParticipant = (allParticipants ?? []).find(
+        p => p.conversation_id === convId && p.user_id !== user.id
       )
-      const lastMessage = messages[0]
-      return { conv, other, lastMessage }
+      const otherProfile = otherParticipant ? profileMap[otherParticipant.user_id] : null
+      const lastMsg = lastMsgMap[convId]
+      return { convId, otherProfile, lastMsg, otherUserId: otherParticipant?.user_id }
     })
-    .filter(Boolean) ?? []
+    .filter(c => c.otherProfile)
+    .sort((a, b) => {
+      const aTime = a.lastMsg ? new Date(a.lastMsg.created_at).getTime() : 0
+      const bTime = b.lastMsg ? new Date(b.lastMsg.created_at).getTime() : 0
+      return bTime - aTime
+    })
+
+  if (conversations.length === 0) return <EmptyState />
 
   return (
     <div>
-      {/* Header */}
+      <div
+        className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 backdrop-blur-md"
+        style={{ background: 'rgba(6,6,10,0.88)', borderBottom: '1px solid var(--border)' }}
+      >
+        <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Messages</h1>
+        <PenSquare size={18} style={{ color: 'var(--text-2)' }} />
+      </div>
+
+      <div>
+        {conversations.map(({ convId, otherProfile, lastMsg, otherUserId }) => (
+          <Link
+            key={convId}
+            href={`/messages/${otherUserId}`}
+            className="flex items-center gap-3 px-4 py-3.5 transition post-row"
+            style={{ borderBottom: '1px solid var(--border)' }}
+          >
+            <div className="relative shrink-0">
+              <Avatar
+                src={otherProfile!.avatar_url}
+                name={otherProfile!.full_name ?? otherProfile!.username}
+                size="lg"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>
+                  {otherProfile!.full_name ?? otherProfile!.username ?? 'User'}
+                </span>
+                {lastMsg && (
+                  <span className="text-xs shrink-0" style={{ color: 'var(--text-3)' }}>
+                    {formatDistanceToNow(new Date(lastMsg.created_at), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm truncate mt-0.5" style={{ color: 'var(--text-3)' }}>
+                {lastMsg
+                  ? (lastMsg.sender_id === user.id ? `You: ${lastMsg.body}` : lastMsg.body)
+                  : 'No messages yet'}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div>
       <div
         className="sticky top-0 z-30 px-4 py-3 backdrop-blur-md"
-        style={{ background: 'rgba(0,0,0,0.85)', borderBottom: '1px solid var(--border)' }}
+        style={{ background: 'rgba(6,6,10,0.88)', borderBottom: '1px solid var(--border)' }}
       >
         <h1 className="text-base font-bold" style={{ color: 'var(--text)' }}>Messages</h1>
       </div>
-
-      {conversations.length === 0 ? (
-        <div className="text-center py-20">
-          <MessageCircle size={40} className="mx-auto mb-3" style={{ color: 'var(--border)' }} />
-          <p className="font-semibold text-sm" style={{ color: 'var(--text-2)' }}>No messages yet.</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-3)' }}>
-            Start a conversation by messaging someone from a post.
-          </p>
+      <div className="text-center py-20 px-6">
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+          style={{ background: 'var(--bg-2)' }}
+        >
+          <MessageCircle size={28} style={{ color: 'var(--text-3)' }} />
         </div>
-      ) : (
-        <div>
-          {conversations.map(item => {
-            if (!item) return null
-            const { conv, other, lastMessage } = item
-            const otherProfile = other?.profiles
-
-            return (
-              <Link
-                key={conv.id}
-                href={`/messages/${other?.user_id}`}
-                className="flex items-center gap-3 px-4 py-3 transition"
-                style={{ borderBottom: '1px solid var(--border)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-              >
-                <Avatar
-                  src={otherProfile?.avatar_url}
-                  name={otherProfile?.full_name ?? otherProfile?.username}
-                  size="lg"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-bold text-sm truncate" style={{ color: 'var(--text)' }}>
-                      {otherProfile?.full_name ?? otherProfile?.username ?? 'User'}
-                    </span>
-                    {lastMessage && (
-                      <span className="text-xs shrink-0 ml-2" style={{ color: 'var(--text-3)' }}>
-                        {formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true })}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm truncate mt-0.5" style={{ color: 'var(--text-3)' }}>
-                    {lastMessage
-                      ? `${lastMessage.sender_id === user.id ? 'You: ' : ''}${lastMessage.body}`
-                      : 'No messages yet'}
-                  </p>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      )}
+        <p className="font-semibold text-sm mb-1" style={{ color: 'var(--text)' }}>No messages yet</p>
+        <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+          Start a conversation by clicking Message on someone&apos;s post or profile.
+        </p>
+      </div>
     </div>
   )
 }
