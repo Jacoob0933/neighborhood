@@ -53,7 +53,7 @@ export default function SignUpPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { username, full_name: fullName } },
@@ -65,12 +65,36 @@ export default function SignUpPage() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user && (city || coords)) {
-      const locationUpdate: Record<string, unknown> = { city, neighborhood }
-      if (coords) locationUpdate.location = `POINT(${coords.lng} ${coords.lat})`
+    // If email confirmation is required, signUpData.user exists but session is null
+    if (!signUpData.session) {
+      setError('Check your email to confirm your account, then sign in.')
+      setLoading(false)
+      return
+    }
+
+    const userId = signUpData.user?.id
+    if (userId) {
+      // Upsert the profile so it exists even if the auto-trigger is missing
+      const profileData: Record<string, unknown> = {
+        id: userId,
+        username,
+        full_name: fullName,
+        city: city || null,
+        neighborhood: neighborhood || null,
+      }
+      if (coords) {
+        profileData.lat = coords.lat
+        profileData.lng = coords.lng
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await supabase.from('profiles').update(locationUpdate as any).eq('id', user.id)
+      const { error: profileError } = await (supabase as any)
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' })
+      if (profileError) {
+        setError('Account created, but profile setup failed: ' + profileError.message)
+        setLoading(false)
+        return
+      }
     }
 
     router.push('/feed')
