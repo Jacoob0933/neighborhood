@@ -117,7 +117,8 @@ export default function EditProfilePage() {
     }
 
     if (coords) {
-      update.location = `POINT(${coords.lng} ${coords.lat})`
+      update.lat = coords.lat
+      update.lng = coords.lng
     }
 
     const { error: updateError } = await supabase

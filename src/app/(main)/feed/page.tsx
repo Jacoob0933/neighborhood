@@ -34,7 +34,6 @@ async function FeedPosts({
 
   // Try GPS-based query if scope is nearby and user has location
   if (scope === 'nearby' && hasLocation) {
-    // Get my coords from RPC
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: coords } = await (supabase as any).rpc('get_my_coords')
     const myCoord = Array.isArray(coords) && coords[0]
@@ -214,11 +213,11 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   // Check if user has GPS location set
   const { data: profile } = user ? await supabase
     .from('profiles')
-    .select('city, neighborhood, location')
+    .select('city, neighborhood, lat, lng')
     .eq('id', user.id)
     .single() : { data: null }
 
-  const hasLocation = !!profile?.location
+  const hasLocation = profile?.lat != null && profile?.lng != null
   const scope: 'nearby' | 'worldwide' =
     params.scope === 'worldwide' ? 'worldwide' : (hasLocation ? 'nearby' : 'worldwide')
 
