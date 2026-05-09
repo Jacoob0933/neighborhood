@@ -15,10 +15,14 @@ export default async function MessagesPage() {
   if (!user) return null
 
   // Step 1: get conversation IDs for this user
-  const { data: myParticipations } = await supabase
+  const { data: myParticipations, error: partError } = await supabase
     .from('conversation_participants')
     .select('conversation_id')
     .eq('user_id', user.id)
+
+  console.log('[Messages] user.id:', user.id)
+  console.log('[Messages] myParticipations:', myParticipations)
+  console.log('[Messages] partError:', partError)
 
   const convIds = (myParticipations ?? []).map(p => p.conversation_id)
 
@@ -27,6 +31,9 @@ export default async function MessagesPage() {
       <>
         <MessagesListRealtime userId={user.id} conversationIds={[]} />
         <EmptyState />
+        <div style={{ position: 'fixed', bottom: 60, left: 10, right: 10, padding: 12, fontSize: 11, background: '#1a1a2e', color: '#f91880', borderRadius: 8, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+          DEBUG: user.id={user.id} | participations={JSON.stringify(myParticipations)} | error={partError?.message ?? 'none'}
+        </div>
       </>
     )
   }
