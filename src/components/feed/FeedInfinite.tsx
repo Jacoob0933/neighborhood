@@ -7,6 +7,7 @@ import { PostCard } from './PostCard'
 interface FeedInfiniteProps {
   initialCursor: string | null
   category?: string
+  scope?: 'nearby' | 'worldwide'
   currentUserId: string
 }
 
@@ -28,7 +29,7 @@ function LoadingDots() {
   )
 }
 
-export function FeedInfinite({ initialCursor, category, currentUserId }: FeedInfiniteProps) {
+export function FeedInfinite({ initialCursor, category, scope, currentUserId }: FeedInfiniteProps) {
   const [posts, setPosts] = useState<Post[]>([])
   const [cursor, setCursor] = useState<string | null>(initialCursor)
   const [loading, setLoading] = useState(false)
@@ -42,6 +43,7 @@ export function FeedInfinite({ initialCursor, category, currentUserId }: FeedInf
     const params = new URLSearchParams()
     if (cursor) params.set('cursor', cursor)
     if (category && category !== 'all') params.set('category', category)
+    if (scope) params.set('scope', scope)
 
     const res = await fetch(`/api/feed?${params.toString()}`)
     if (!res.ok) { setLoading(false); return }

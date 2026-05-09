@@ -1,55 +1,94 @@
 import { createClient } from '@/lib/supabase/server'
 import { Suspense } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, Compass } from 'lucide-react'
 import Link from 'next/link'
 import type { PostCategory } from '@/types/database'
 import { PostCard } from '@/components/feed/PostCard'
 import { CategoryFilter } from '@/components/feed/CategoryFilter'
 import { FeedInfinite } from '@/components/feed/FeedInfinite'
+import { ScopeToggle } from '@/components/feed/ScopeToggle'
 
 const PAGE_SIZE = 20
+const RADIUS_M = 30_000 // 30km
 
 interface FeedPageProps {
-  searchParams: Promise<{ category?: string }>
+  searchParams: Promise<{ category?: string; scope?: string }>
 }
 
-async function FeedPosts({ category, userId }: { category?: string; userId: string }) {
+async function FeedPosts({
+  category,
+  scope,
+  userId,
+  hasLocation,
+}: {
+  category?: string
+  scope: 'nearby' | 'worldwide'
+  userId: string
+  hasLocation: boolean
+}) {
   const supabase = await createClient()
-
   type RawPost = Record<string, unknown>
 
-  let query = supabase
-    .from('posts')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(PAGE_SIZE + 1)
+  let posts: RawPost[] = []
+  let usedNearby = false
 
-  if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+  // Try GPS-based query if scope is nearby and user has location
+  if (scope === 'nearby' && hasLocation) {
+    // Get my coords from RPC
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: coords } = await (supabase as any).rpc('get_my_coords')
+    const myCoord = Array.isArray(coords) && coords[0]
+    if (myCoord?.lat != null && myCoord?.lng != null) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).rpc('posts_near', {
+        lat: myCoord.lat,
+        lng: myCoord.lng,
+        radius_m: RADIUS_M,
+        lim: PAGE_SIZE + 1,
+        cat: category && category !== 'all' ? category : null,
+      })
+      if (!error && Array.isArray(data)) {
+        posts = data
+        usedNearby = true
+      }
+    }
+  }
 
-  const { data: rawPosts, error } = await query
+  // Fallback or worldwide: global query
+  if (!usedNearby) {
+    let query = supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE + 1)
 
-  if (error) {
-    // If it's an invalid enum value (e.g. category not yet in DB), show empty state
-    if (error.message.includes('invalid input value for enum')) {
+    if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+
+    const { data: rawPosts, error } = await query
+
+    if (error) {
+      if (error.message.includes('invalid input value for enum')) {
+        return (
+          <div className="text-center py-20 px-6">
+            <p className="text-5xl mb-4">🚧</p>
+            <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>Coming soon</p>
+            <p className="text-sm" style={{ color: 'var(--text-2)' }}>This category is being set up.</p>
+          </div>
+        )
+      }
       return (
         <div className="text-center py-20 px-6">
-          <p className="text-5xl mb-4">🚧</p>
-          <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>Coming soon</p>
-          <p className="text-sm" style={{ color: 'var(--text-2)' }}>This category is being set up. Check back in a moment.</p>
+          <p className="text-5xl mb-4">⚠️</p>
+          <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Feed error</p>
+          <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>{error.message}</p>
         </div>
       )
     }
-    return (
-      <div className="text-center py-20 px-6">
-        <p className="text-5xl mb-4">⚠️</p>
-        <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Feed error</p>
-        <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>{error.message}</p>
-      </div>
-    )
+
+    posts = rawPosts ?? []
   }
 
-  let posts: RawPost[] = rawPosts ?? []
-
+  // Enrich with profiles + likes
   if (posts.length > 0) {
     const authorIds = [...new Set(posts.map(p => p.author_id as string))]
     const { data: profiles } = await supabase
@@ -85,6 +124,33 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
     : null
 
   if (!pagePosts.length) {
+    if (scope === 'nearby' && hasLocation) {
+      return (
+        <div className="text-center py-20 px-6">
+          <p className="text-5xl mb-4">🏘️</p>
+          <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>No posts within 30km</p>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-2)' }}>
+            Be the first in your area, or expand your view.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Link
+              href="/posts/new"
+              className="inline-block px-5 py-2 rounded-full text-sm font-bold text-white hover:opacity-90 transition"
+              style={{ background: 'linear-gradient(135deg, #1d9bf0, #0d6efd)' }}
+            >
+              Post here
+            </Link>
+            <Link
+              href={`/feed?scope=worldwide${category ? `&category=${category}` : ''}`}
+              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-bold hover:opacity-80 transition"
+              style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              <Compass size={14} /> See worldwide
+            </Link>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="text-center py-20 px-6">
         <p className="text-5xl mb-4">🏡</p>
@@ -106,7 +172,12 @@ async function FeedPosts({ category, userId }: { category?: string; userId: stri
       {(pagePosts as unknown as Parameters<typeof PostCard>[0]['post'][]).map(post => (
         <PostCard key={post.id} post={post} currentUserId={userId} />
       ))}
-      <FeedInfinite initialCursor={nextCursor} category={category} currentUserId={userId} />
+      <FeedInfinite
+        initialCursor={nextCursor}
+        category={category}
+        scope={scope}
+        currentUserId={userId}
+      />
     </>
   )
 }
@@ -116,28 +187,18 @@ function FeedSkeleton() {
     <div>
       {[...Array(6)].map((_, i) => (
         <div key={i} className="flex gap-3 px-4 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          {/* Avatar skeleton */}
           <div className="skeleton w-10 h-10 rounded-full shrink-0" />
           <div className="flex-1 space-y-2 pt-0.5">
-            {/* Name row */}
             <div className="flex items-center gap-2">
               <div className="skeleton h-3.5 rounded-full" style={{ width: '30%' }} />
               <div className="skeleton h-3 rounded-full" style={{ width: '15%' }} />
             </div>
-            {/* Title */}
             <div className="skeleton h-3.5 rounded-full" style={{ width: '80%' }} />
-            {/* Body */}
             <div className="skeleton h-3 rounded-full" style={{ width: '100%' }} />
             <div className="skeleton h-3 rounded-full" style={{ width: '65%' }} />
-            {/* Image placeholder for some */}
             {i % 3 === 0 && (
               <div className="skeleton w-full rounded-xl mt-1" style={{ height: 160 }} />
             )}
-            {/* Action row */}
-            <div className="flex gap-3 pt-1">
-              <div className="skeleton h-3 rounded-full w-8" />
-              <div className="skeleton h-3 rounded-full w-8" />
-            </div>
           </div>
         </div>
       ))}
@@ -150,13 +211,18 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Check if user has GPS location set
   const { data: profile } = user ? await supabase
     .from('profiles')
-    .select('city, neighborhood')
+    .select('city, neighborhood, location')
     .eq('id', user.id)
     .single() : { data: null }
 
-  const locationLabel = profile?.neighborhood || profile?.city || 'Your area'
+  const hasLocation = !!profile?.location
+  const scope: 'nearby' | 'worldwide' =
+    params.scope === 'worldwide' ? 'worldwide' : (hasLocation ? 'nearby' : 'worldwide')
+
+  const locationLabel = profile?.neighborhood || profile?.city || 'Set location'
 
   return (
     <div>
@@ -165,27 +231,53 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         className="sticky top-0 z-30 backdrop-blur-md"
         style={{ background: 'rgba(6,6,10,0.88)', borderBottom: '1px solid var(--border)' }}
       >
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-lg font-black tracking-tight" style={{ color: 'var(--text)' }}>Home</h1>
-          <div
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
-            style={{ color: 'var(--text-2)', background: 'var(--bg-2)', border: '1px solid var(--border)' }}
-          >
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <h1 className="text-lg font-black tracking-tight shrink-0" style={{ color: 'var(--text)' }}>Home</h1>
+          <ScopeToggle hasLocation={hasLocation} />
+        </div>
+
+        {/* Location row */}
+        <div className="flex items-center justify-between px-4 pb-2">
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-3)' }}>
             <MapPin size={10} style={{ color: 'var(--accent)' }} />
-            <span>{locationLabel}</span>
+            <span>{scope === 'nearby' ? `${locationLabel} · within 30km` : 'Showing posts worldwide'}</span>
           </div>
         </div>
+
         <Suspense>
           <CategoryFilter />
         </Suspense>
       </div>
+
+      {/* Set location banner */}
+      {!hasLocation && (
+        <Link
+          href="/profile/edit"
+          className="flex items-center gap-3 px-4 py-3 fade-in"
+          style={{
+            background: 'linear-gradient(135deg, rgba(29,155,240,0.1), rgba(29,155,240,0.05))',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(29,155,240,0.2)' }}
+          >
+            <MapPin size={16} style={{ color: 'var(--accent)' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Set your location</p>
+            <p className="text-xs" style={{ color: 'var(--text-2)' }}>See posts from neighbors within 30km</p>
+          </div>
+          <span className="text-xs font-bold shrink-0" style={{ color: 'var(--accent)' }}>Setup →</span>
+        </Link>
+      )}
 
       {/* Quick compose bar */}
       <Link
         href="/posts/new"
         className="flex items-center gap-3 px-4 py-3.5 transition-colors"
         style={{ borderBottom: '1px solid var(--border)' }}
-        onMouseEnter={undefined}
       >
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-base"
@@ -194,7 +286,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
           ✏️
         </div>
         <span className="text-sm flex-1" style={{ color: 'var(--text-3)' }}>
-          What&apos;s happening in {locationLabel}?
+          What&apos;s happening{locationLabel !== 'Set location' ? ` in ${locationLabel}?` : '?'}
         </span>
         <span
           className="text-xs font-bold px-3.5 py-1.5 rounded-full shrink-0 text-white"
@@ -206,7 +298,14 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
 
       {/* Feed posts */}
       <Suspense fallback={<FeedSkeleton />}>
-        {user && <FeedPosts category={params.category} userId={user.id} />}
+        {user && (
+          <FeedPosts
+            category={params.category}
+            scope={scope}
+            userId={user.id}
+            hasLocation={hasLocation}
+          />
+        )}
       </Suspense>
     </div>
   )
