@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Send, Check } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
@@ -48,6 +49,7 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+  const router = useRouter()
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -110,6 +112,8 @@ export function ChatWindow({ conversationId, currentUserId, otherUser, initialMe
       setBody(text) // Restore text so user can retry
     } else if (data) {
       setMessages(prev => prev.map(m => m.id === tempId ? (data as unknown as ChatMessage) : m))
+      // Refresh server data so the messages list page shows the new message next time
+      router.refresh()
     }
     setSending(false)
     inputRef.current?.focus()

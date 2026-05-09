@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { MessageCircle, PenSquare } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { MessagesListRealtime } from '@/components/messages/MessagesListRealtime'
 
 export default async function MessagesPage() {
   const supabase = await createClient()
@@ -18,7 +19,12 @@ export default async function MessagesPage() {
   const convIds = (myParticipations ?? []).map(p => p.conversation_id)
 
   if (convIds.length === 0) {
-    return <EmptyState />
+    return (
+      <>
+        <MessagesListRealtime userId={user.id} conversationIds={[]} />
+        <EmptyState />
+      </>
+    )
   }
 
   // Step 2: get all participants in those conversations
@@ -75,6 +81,7 @@ export default async function MessagesPage() {
 
   return (
     <div>
+      <MessagesListRealtime userId={user.id} conversationIds={convIds} />
       <div
         className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 backdrop-blur-md"
         style={{ background: 'rgba(6,6,10,0.88)', borderBottom: '1px solid var(--border)' }}
