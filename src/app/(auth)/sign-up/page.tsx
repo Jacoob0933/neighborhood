@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, MapPin } from 'lucide-react'
+import { Loader2, MapPin, CheckCircle2 } from 'lucide-react'
 
 const inputStyle = {
   width: '100%',
@@ -19,7 +19,7 @@ const inputStyle = {
 
 export default function SignUpPage() {
   const router = useRouter()
-  const [step, setStep] = useState<'account' | 'location'>('account')
+  const [step, setStep] = useState<'account' | 'location' | 'check_email'>('account')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
@@ -53,10 +53,26 @@ export default function SignUpPage() {
     setLoading(true)
     const supabase = createClient()
 
+    // Pass ALL profile data via metadata so an auth trigger can persist it
+    // even when email-confirmation is enabled (no session at signup time).
+    const metadata: Record<string, unknown> = {
+      username,
+      full_name: fullName,
+    }
+    if (city) metadata.city = city
+    if (neighborhood) metadata.neighborhood = neighborhood
+    if (coords) {
+      metadata.lat = coords.lat
+      metadata.lng = coords.lng
+    }
+
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username, full_name: fullName } },
+      options: {
+        data: metadata,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
 
     if (signUpError) {
@@ -65,16 +81,17 @@ export default function SignUpPage() {
       return
     }
 
-    // If email confirmation is required, signUpData.user exists but session is null
+    // No session = email confirmation required
     if (!signUpData.session) {
-      setError('Check your email to confirm your account, then sign in.')
+      setStep('check_email')
       setLoading(false)
       return
     }
 
+    // Has session = signed in immediately. Make sure profile is set up
+    // (covers case where the auth trigger isn't installed yet).
     const userId = signUpData.user?.id
     if (userId) {
-      // Upsert the profile so it exists even if the auto-trigger is missing
       const profileData: Record<string, unknown> = {
         id: userId,
         username,
@@ -87,18 +104,38 @@ export default function SignUpPage() {
         profileData.lng = coords.lng
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: profileError } = await (supabase as any)
-        .from('profiles')
-        .upsert(profileData, { onConflict: 'id' })
-      if (profileError) {
-        setError('Account created, but profile setup failed: ' + profileError.message)
-        setLoading(false)
-        return
-      }
+      await (supabase as any).from('profiles').upsert(profileData, { onConflict: 'id' })
     }
 
     router.push('/feed')
     router.refresh()
+  }
+
+  if (step === 'check_email') {
+    return (
+      <>
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(29,155,240,0.15)' }}>
+            <CheckCircle2 size={32} style={{ color: '#1d9bf0' }} />
+          </div>
+        </div>
+        <h2 className="text-2xl font-black mb-2 text-center" style={{ color: 'var(--text)' }}>Check your email</h2>
+        <p className="text-sm mb-6 text-center" style={{ color: 'var(--text-2)' }}>
+          We sent a confirmation link to <span style={{ color: 'var(--text)', fontWeight: 600 }}>{email}</span>.
+          Click the link in the email to activate your account.
+        </p>
+        <p className="text-xs mb-6 text-center" style={{ color: 'var(--text-3)' }}>
+          Don&apos;t see it? Check your spam folder.
+        </p>
+        <Link
+          href="/sign-in"
+          className="block w-full text-center rounded-full py-3 text-sm font-bold transition hover:opacity-90"
+          style={{ background: '#1d9bf0', color: 'white' }}
+        >
+          Go to sign in
+        </Link>
+      </>
+    )
   }
 
   return (
@@ -109,7 +146,7 @@ export default function SignUpPage() {
       <p className="text-sm mb-8" style={{ color: 'var(--text-2)' }}>
         {step === 'account'
           ? 'Connect with people in your neighborhood'
-          : 'We use this to show you posts within 20 km'}
+          : 'We use this to show you posts within 30 km'}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -178,7 +215,7 @@ export default function SignUpPage() {
         )}
 
         {error && (
-          <p className="text-sm rounded-full px-4 py-2.5" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+          <p className="text-sm rounded-2xl px-4 py-2.5" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
             {error}
           </p>
         )}

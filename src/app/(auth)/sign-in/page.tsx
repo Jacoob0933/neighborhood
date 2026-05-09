@@ -19,8 +19,34 @@ export default function SignInPage() {
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false) }
+    if (error) {
+      // Friendly error messages
+      const msg = error.message.toLowerCase()
+      if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+        setError('Your email is not confirmed yet. Check your inbox (and spam folder) for the confirmation link.')
+      } else if (msg.includes('invalid login') || msg.includes('invalid credentials')) {
+        setError('Wrong email or password. Try again, or sign up if you don\'t have an account.')
+      } else {
+        setError(error.message)
+      }
+      setLoading(false)
+    }
     else { router.push('/feed'); router.refresh() }
+  }
+
+  async function resendConfirmation() {
+    if (!email) { setError('Enter your email first'); return }
+    setError('')
+    setLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) setError(error.message)
+    else setError('✓ Confirmation email re-sent. Check your inbox.')
+    setLoading(false)
   }
 
   const inputStyle = {
@@ -70,9 +96,21 @@ export default function SignInPage() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-400 rounded-xl px-4 py-2.5" style={{ background: 'rgba(239,68,68,0.1)' }}>
-            {error}
-          </p>
+          <div className="rounded-2xl px-4 py-2.5" style={{ background: error.startsWith('✓') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
+            <p className="text-sm" style={{ color: error.startsWith('✓') ? '#4ade80' : '#f87171' }}>
+              {error}
+            </p>
+            {error.toLowerCase().includes('not confirmed') && (
+              <button
+                type="button"
+                onClick={resendConfirmation}
+                className="text-xs font-bold mt-1.5 underline"
+                style={{ color: '#1d9bf0' }}
+              >
+                Resend confirmation email
+              </button>
+            )}
+          </div>
         )}
 
         <button
