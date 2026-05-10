@@ -56,48 +56,57 @@ async function FeedPosts({
   // Fallback or worldwide: global query (only verified authors in worldwide)
   if (!usedNearby) {
     // For worldwide, only show posts from verified users
-    let verifiedIds: string[] = []
     if (scope === 'worldwide') {
       const { data: vp } = await supabase.from('profiles').select('id').eq('verified', true)
-      verifiedIds = (vp ?? []).map((p: { id: string }) => p.id)
-    }
+      const verifiedIds = (vp ?? []).map((p: { id: string }) => p.id)
 
-    let query = supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(PAGE_SIZE + 1)
+      if (verifiedIds.length === 0) {
+        // No verified users — show nothing
+        posts = []
+      } else {
+        let query = supabase
+          .from('posts')
+          .select('*')
+          .in('author_id', verifiedIds)
+          .order('created_at', { ascending: false })
+          .limit(PAGE_SIZE + 1)
+        if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+        const { data: rawPosts } = await query
+        posts = rawPosts ?? []
+      }
+    } else {
+      // nearby fallback (no GPS) — show all posts
+      let query = supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1)
 
-    if (category && category !== 'all') query = query.eq('category', category as PostCategory)
-    if (scope === 'worldwide' && verifiedIds.length > 0) query = query.in('author_id', verifiedIds)
-    if (scope === 'worldwide' && verifiedIds.length === 0) {
-      // No verified users yet — return empty
-      posts = []
-      usedNearby = true // skip the query below
-    }
+      if (category && category !== 'all') query = query.eq('category', category as PostCategory)
 
-    const { data: rawPosts, error } = await query
+      const { data: rawPosts, error } = await query
 
-    if (error) {
-      if (error.message.includes('invalid input value for enum')) {
+      if (error) {
+        if (error.message.includes('invalid input value for enum')) {
+          return (
+            <div className="text-center py-20 px-6">
+              <p className="text-5xl mb-4">🚧</p>
+              <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>Coming soon</p>
+              <p className="text-sm" style={{ color: 'var(--text-2)' }}>This category is being set up.</p>
+            </div>
+          )
+        }
         return (
           <div className="text-center py-20 px-6">
-            <p className="text-5xl mb-4">🚧</p>
-            <p className="font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>Coming soon</p>
-            <p className="text-sm" style={{ color: 'var(--text-2)' }}>This category is being set up.</p>
+            <p className="text-5xl mb-4">⚠️</p>
+            <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Feed error</p>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>{error.message}</p>
           </div>
         )
       }
-      return (
-        <div className="text-center py-20 px-6">
-          <p className="text-5xl mb-4">⚠️</p>
-          <p className="font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Feed error</p>
-          <p className="text-sm mb-5" style={{ color: 'var(--text-2)' }}>{error.message}</p>
-        </div>
-      )
-    }
 
-    posts = rawPosts ?? []
+      posts = rawPosts ?? []
+    }
   }
 
   // Enrich with profiles + likes
