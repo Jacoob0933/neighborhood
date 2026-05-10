@@ -25,7 +25,37 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data } = await supabase.auth.exchangeCodeForSession(code)
+
+    // For OAuth users (Google, Apple) — make sure profile exists
+    if (data?.user) {
+      const user = data.user
+      const meta = user.user_metadata ?? {}
+
+      // Build a safe username from email prefix
+      const emailPrefix = (user.email ?? '').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20)
+      const fallbackUsername = emailPrefix || `user${user.id.slice(0, 6)}`
+
+      // Only upsert if profile doesn't already have required fields
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .eq('id', user.id)
+        .single()
+
+      if (!existing?.username) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          username: meta.username ?? fallbackUsername,
+          full_name: meta.full_name ?? meta.name ?? '',
+          avatar_url: meta.avatar_url ?? meta.picture ?? null,
+          city: meta.city ?? null,
+          neighborhood: meta.neighborhood ?? null,
+          lat: meta.lat ?? null,
+          lng: meta.lng ?? null,
+        }, { onConflict: 'id' })
+      }
+    }
   }
 
   return NextResponse.redirect(new URL(next, request.url))
