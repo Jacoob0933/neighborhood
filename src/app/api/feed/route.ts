@@ -19,29 +19,63 @@ export async function GET(request: Request) {
   let posts: RawPost[] = []
   let usedNearby = false
 
-  // Try nearby query if scope=nearby
-  if (scope === 'nearby') {
+  // Get the user's stored lat/lng directly from profile
+  // (do NOT call get_my_coords RPC — it reads PostGIS geography column which is not synced)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('lat, lng')
+    .eq('id', user.id)
+    .single()
+
+  const userLat = profile?.lat ?? null
+  const userLng = profile?.lng ?? null
+  const hasLocation = userLat != null && userLng != null
+
+  // Try nearby query if scope=nearby and user has GPS saved
+  if (scope === 'nearby' && hasLocation) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: coords } = await (supabase as any).rpc('get_my_coords')
-    const myCoord = Array.isArray(coords) && coords[0]
-    if (myCoord?.lat != null && myCoord?.lng != null) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc('posts_near', {
-        lat: myCoord.lat,
-        lng: myCoord.lng,
-        radius_m: RADIUS_M,
-        lim: PAGE_SIZE + 1,
-        cat: category && category !== 'all' ? category : null,
-        cur: cursor || null,
-      })
-      if (!error && Array.isArray(data)) {
-        posts = data
-        usedNearby = true
-      }
+    const { data, error } = await (supabase as any).rpc('posts_near', {
+      lat: userLat,
+      lng: userLng,
+      radius_m: RADIUS_M,
+      lim: PAGE_SIZE + 1,
+      cat: category && category !== 'all' ? category : null,
+      cur: cursor || null,
+    })
+    if (!error && Array.isArray(data)) {
+      posts = data
+      usedNearby = true
     }
   }
 
-  // Fallback or worldwide
+  // Worldwide: only show posts from verified users
+  if (!usedNearby && scope === 'worldwide') {
+    const { data: vp } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('verified', true)
+    const verifiedIds = (vp ?? []).map((p: { id: string }) => p.id)
+
+    if (verifiedIds.length === 0) {
+      posts = []
+    } else {
+      let query = supabase
+        .from('posts')
+        .select('*')
+        .in('author_id', verifiedIds)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1)
+
+      if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+      if (cursor) query = query.lt('created_at', cursor)
+
+      const { data } = await query
+      posts = data ?? []
+    }
+    usedNearby = true // mark as handled
+  }
+
+  // Nearby fallback (no GPS) — show all posts
   if (!usedNearby) {
     let query = supabase
       .from('posts')
@@ -61,7 +95,7 @@ export async function GET(request: Request) {
     const authorIds = [...new Set(posts.map(p => p.author_id as string))]
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, city, neighborhood')
+      .select('id, username, full_name, avatar_url, city, neighborhood, verified')
       .in('id', authorIds)
 
     const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))

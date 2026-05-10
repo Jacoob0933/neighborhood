@@ -27,7 +27,7 @@ export default async function PostPage({ params }: PostPageProps) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, username, full_name, avatar_url, city, neighborhood')
+    .select('id, username, full_name, avatar_url, city, neighborhood, verified')
     .eq('id', post.author_id)
     .single()
 
@@ -50,7 +50,7 @@ export default async function PostPage({ params }: PostPageProps) {
   const liked = likes?.some(l => l.user_id === user?.id) ?? false
   const attending = attendees?.some(a => a.user_id === user?.id) ?? false
   const attendeeCount = attendees?.length ?? 0
-  const isVerified = profile?.username === 'neighborhoodofficial'
+  const isVerified = profile?.verified === true
   const location = post.neighborhood || post.city
 
   return (
