@@ -53,8 +53,15 @@ async function FeedPosts({
     }
   }
 
-  // Fallback or worldwide: global query
+  // Fallback or worldwide: global query (only verified authors in worldwide)
   if (!usedNearby) {
+    // For worldwide, only show posts from verified users
+    let verifiedIds: string[] = []
+    if (scope === 'worldwide') {
+      const { data: vp } = await supabase.from('profiles').select('id').eq('verified', true)
+      verifiedIds = (vp ?? []).map((p: { id: string }) => p.id)
+    }
+
     let query = supabase
       .from('posts')
       .select('*')
@@ -62,6 +69,12 @@ async function FeedPosts({
       .limit(PAGE_SIZE + 1)
 
     if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+    if (scope === 'worldwide' && verifiedIds.length > 0) query = query.in('author_id', verifiedIds)
+    if (scope === 'worldwide' && verifiedIds.length === 0) {
+      // No verified users yet — return empty
+      posts = []
+      usedNearby = true // skip the query below
+    }
 
     const { data: rawPosts, error } = await query
 
@@ -92,7 +105,7 @@ async function FeedPosts({
     const authorIds = [...new Set(posts.map(p => p.author_id as string))]
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, city, neighborhood')
+      .select('id, username, full_name, avatar_url, city, neighborhood, verified')
       .in('id', authorIds)
 
     const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
@@ -213,11 +226,12 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   // Check if user has GPS location set
   const { data: profile } = user ? await supabase
     .from('profiles')
-    .select('city, neighborhood, lat, lng')
+    .select('city, neighborhood, lat, lng, verified')
     .eq('id', user.id)
     .single() : { data: null }
 
   const hasLocation = profile?.lat != null && profile?.lng != null
+  const isVerified = profile?.verified === true
   const scope: 'nearby' | 'worldwide' =
     params.scope === 'worldwide' ? 'worldwide' : (hasLocation ? 'nearby' : 'worldwide')
 
@@ -232,7 +246,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       >
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <h1 className="text-lg font-black tracking-tight shrink-0" style={{ color: 'var(--text)' }}>Home</h1>
-          <ScopeToggle hasLocation={hasLocation} />
+          <ScopeToggle hasLocation={hasLocation} isVerified={isVerified} />
         </div>
 
         {/* Location row */}

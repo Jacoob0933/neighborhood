@@ -33,7 +33,7 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   }
 
   const author = post.profiles
-  const isVerified = author?.username === 'neighborhoodofficial'
+  const isVerified = author?.verified === true
   const location = post.neighborhood || post.city
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
   const hasImages = post.image_urls && post.image_urls.length > 0
