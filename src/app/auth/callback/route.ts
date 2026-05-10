@@ -27,16 +27,12 @@ export async function GET(request: NextRequest) {
 
     const { data } = await supabase.auth.exchangeCodeForSession(code)
 
-    // For OAuth users (Google, Apple) — make sure profile exists
     if (data?.user) {
       const user = data.user
       const meta = user.user_metadata ?? {}
+      const provider = user.app_metadata?.provider
 
-      // Build a safe username from email prefix
-      const emailPrefix = (user.email ?? '').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20)
-      const fallbackUsername = emailPrefix || `user${user.id.slice(0, 6)}`
-
-      // Only upsert if profile doesn't already have required fields
+      // Check if profile already exists and has a username
       const { data: existing } = await supabase
         .from('profiles')
         .select('id, username')
@@ -44,6 +40,10 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!existing?.username) {
+        // New user — create basic profile from OAuth data
+        const emailPrefix = (user.email ?? '').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20)
+        const fallbackUsername = emailPrefix || `user${user.id.slice(0, 6)}`
+
         await supabase.from('profiles').upsert({
           id: user.id,
           username: meta.username ?? fallbackUsername,
@@ -54,6 +54,11 @@ export async function GET(request: NextRequest) {
           lat: meta.lat ?? null,
           lng: meta.lng ?? null,
         }, { onConflict: 'id' })
+
+        // OAuth new user → send to setup page for GPS
+        if (provider === 'google' || provider === 'apple') {
+          return NextResponse.redirect(new URL('/setup', request.url))
+        }
       }
     }
   }
