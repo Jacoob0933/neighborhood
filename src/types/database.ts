@@ -14,6 +14,7 @@ export interface Profile {
   lng?: number | null
   full_name_locked?: boolean
   username_updated_at?: string | null
+  location_updated_at?: string | null
   created_at: string
   updated_at: string
 }

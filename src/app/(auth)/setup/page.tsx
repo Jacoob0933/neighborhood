@@ -55,7 +55,11 @@ export default function SetupPage() {
     if (!user) { router.push('/sign-in'); return }
 
     const update: Record<string, unknown> = {}
-    if (coords) { update.lat = coords.lat; update.lng = coords.lng }
+    if (coords) {
+      update.lat = coords.lat
+      update.lng = coords.lng
+      update.location_updated_at = new Date().toISOString()
+    }
 
     if (Object.keys(update).length > 0) {
       await supabase.from('profiles').update(update).eq('id', user.id)

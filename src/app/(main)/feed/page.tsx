@@ -20,11 +20,15 @@ async function FeedPosts({
   scope,
   userId,
   hasLocation,
+  userLat,
+  userLng,
 }: {
   category?: string
   scope: 'nearby' | 'worldwide'
   userId: string
   hasLocation: boolean
+  userLat: number | null
+  userLng: number | null
 }) {
   const supabase = await createClient()
   type RawPost = Record<string, unknown>
@@ -33,23 +37,20 @@ async function FeedPosts({
   let usedNearby = false
 
   // Try GPS-based query if scope is nearby and user has location
-  if (scope === 'nearby' && hasLocation) {
+  // Use lat/lng directly from profile — do NOT call get_my_coords RPC
+  // (that RPC reads from the PostGIS geography column which is not kept in sync)
+  if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: coords } = await (supabase as any).rpc('get_my_coords')
-    const myCoord = Array.isArray(coords) && coords[0]
-    if (myCoord?.lat != null && myCoord?.lng != null) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc('posts_near', {
-        lat: myCoord.lat,
-        lng: myCoord.lng,
-        radius_m: RADIUS_M,
-        lim: PAGE_SIZE + 1,
-        cat: category && category !== 'all' ? category : null,
-      })
-      if (!error && Array.isArray(data)) {
-        posts = data
-        usedNearby = true
-      }
+    const { data, error } = await (supabase as any).rpc('posts_near', {
+      lat: userLat,
+      lng: userLng,
+      radius_m: RADIUS_M,
+      lim: PAGE_SIZE + 1,
+      cat: category && category !== 'all' ? category : null,
+    })
+    if (!error && Array.isArray(data)) {
+      posts = data
+      usedNearby = true
     }
   }
 
@@ -240,6 +241,8 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     .single() : { data: null }
 
   const hasLocation = profile?.lat != null && profile?.lng != null
+  const userLat = profile?.lat ?? null
+  const userLng = profile?.lng ?? null
   const isVerified = profile?.verified === true
   const scope: 'nearby' | 'worldwide' =
     params.scope === 'worldwide' ? 'worldwide' : (hasLocation ? 'nearby' : 'worldwide')
@@ -326,6 +329,8 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
             scope={scope}
             userId={user.id}
             hasLocation={hasLocation}
+            userLat={userLat}
+            userLng={userLng}
           />
         )}
       </Suspense>

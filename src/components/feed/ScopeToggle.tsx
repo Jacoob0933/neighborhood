@@ -38,7 +38,11 @@ export function ScopeToggle({ hasLocation, isVerified: _isVerified }: Props) {
         if (!user) { setDetecting(false); return }
         const { error } = await supabase
           .from('profiles')
-          .update({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          .update({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            location_updated_at: new Date().toISOString(),
+          })
           .eq('id', user.id)
         setDetecting(false)
         if (error) { alert('Could not save location: ' + error.message); return }

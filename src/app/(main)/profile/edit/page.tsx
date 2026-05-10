@@ -40,6 +40,8 @@ export default function EditProfilePage() {
   // Lock state
   const [fullNameLocked, setFullNameLocked] = useState(false)
   const [usernameUpdatedAt, setUsernameUpdatedAt] = useState<string | null>(null)
+  const [locationUpdatedAt, setLocationUpdatedAt] = useState<string | null>(null)
+  const [hasExistingLocation, setHasExistingLocation] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -61,6 +63,8 @@ export default function EditProfilePage() {
         setNeighborhood(profile.neighborhood ?? '')
         setFullNameLocked(profile.full_name_locked ?? false)
         setUsernameUpdatedAt(profile.username_updated_at ?? null)
+        setLocationUpdatedAt(profile.location_updated_at ?? null)
+        setHasExistingLocation(profile.lat != null && profile.lng != null)
       }
       setLoading(false)
     }
@@ -75,14 +79,25 @@ export default function EditProfilePage() {
     ? addDays(new Date(usernameUpdatedAt), 3)
     : null
 
+  // GPS cooldown: can update every 30 days (after first save)
+  const GPS_COOLDOWN_DAYS = 30
+  const locationCanChange = !hasExistingLocation || !locationUpdatedAt ||
+    differenceInDays(new Date(), new Date(locationUpdatedAt)) >= GPS_COOLDOWN_DAYS
+
+  const locationNextChange = locationUpdatedAt && hasExistingLocation
+    ? addDays(new Date(locationUpdatedAt), GPS_COOLDOWN_DAYS)
+    : null
+
   function detectLocation() {
+    if (!locationCanChange) return
     setDetectingLocation(true)
     navigator.geolocation.getCurrentPosition(
       pos => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setDetectingLocation(false)
       },
-      () => setDetectingLocation(false)
+      () => setDetectingLocation(false),
+      { timeout: 12000, maximumAge: 60000, enableHighAccuracy: false }
     )
   }
 
@@ -116,9 +131,10 @@ export default function EditProfilePage() {
       update.username_updated_at = new Date().toISOString()
     }
 
-    if (coords) {
+    if (coords && locationCanChange) {
       update.lat = coords.lat
       update.lng = coords.lng
+      update.location_updated_at = new Date().toISOString()
     }
 
     const { error: updateError } = await supabase
@@ -272,21 +288,45 @@ export default function EditProfilePage() {
 
         {/* GPS */}
         <div>
-          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>GPS LOCATION</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold" style={{ color: 'var(--text-3)' }}>GPS LOCATION</label>
+            {!locationCanChange && locationNextChange && (
+              <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-3)' }}>
+                <Lock size={10} /> can update {format(locationNextChange, 'MMM d')}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={detectLocation}
-            disabled={detectingLocation}
+            disabled={detectingLocation || !locationCanChange}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
             style={{
-              background: coords ? 'rgba(29,155,240,0.12)' : 'var(--bg-2)',
-              border: `1px solid ${coords ? '#1d9bf0' : 'var(--border)'}`,
-              color: coords ? '#1d9bf0' : 'var(--text-2)',
+              background: !locationCanChange
+                ? 'var(--bg-2)'
+                : coords
+                  ? 'rgba(29,155,240,0.12)'
+                  : 'var(--bg-2)',
+              border: `1px solid ${!locationCanChange ? 'var(--border)' : coords ? '#1d9bf0' : 'var(--border)'}`,
+              color: !locationCanChange ? 'var(--text-3)' : coords ? '#1d9bf0' : 'var(--text-2)',
+              opacity: !locationCanChange ? 0.5 : 1,
+              cursor: !locationCanChange ? 'not-allowed' : 'pointer',
             }}
           >
             {detectingLocation ? <Loader2 size={15} className="animate-spin" /> : <MapPin size={15} />}
-            {coords ? `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : 'Update GPS location'}
+            {!locationCanChange
+              ? `Location locked until ${locationNextChange ? format(locationNextChange, 'MMM d') : '...'}`
+              : coords
+                ? `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
+                : hasExistingLocation
+                  ? 'Update GPS location'
+                  : 'Detect my location'}
           </button>
+          {!locationCanChange && (
+            <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+              GPS can be updated once every {GPS_COOLDOWN_DAYS} days to prevent abuse.
+            </p>
+          )}
         </div>
 
         {error && (
