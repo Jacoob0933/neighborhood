@@ -1,11 +1,11 @@
 import type { PostCategory } from '@/types/database'
 
 const config: Record<PostCategory, { label: string; emoji: string; color: string; bg: string }> = {
-  general:     { label: 'General',     emoji: '💬', color: '#58a6ff', bg: 'rgba(88,166,255,0.12)' },
-  events:      { label: 'Event',       emoji: '🎉', color: '#bc8cff', bg: 'rgba(188,140,255,0.12)' },
-  marketplace: { label: 'Marketplace', emoji: '🛍️', color: '#e3b341', bg: 'rgba(227,179,65,0.12)' },
-  lost_found:  { label: 'Lost & Found',emoji: '🔍', color: '#f78166', bg: 'rgba(247,129,102,0.12)' },
-  promo:       { label: 'Promo',       emoji: '📢', color: '#3fb950', bg: 'rgba(63,185,80,0.12)'  },
+  general:     { label: 'General',     emoji: '💬', color: '#58a6ff', bg: 'rgba(88,166,255,0.13)'   },
+  events:      { label: 'Event',       emoji: '🎉', color: '#c084fc', bg: 'rgba(192,132,252,0.13)'  },
+  marketplace: { label: 'Marketplace', emoji: '🛍️', color: '#fbbf24', bg: 'rgba(251,191,36,0.13)'  },
+  lost_found:  { label: 'Lost & Found',emoji: '🔍', color: '#f87171', bg: 'rgba(248,113,113,0.13)'  },
+  promo:       { label: 'Promo',       emoji: '📢', color: '#4ade80', bg: 'rgba(74,222,128,0.13)'   },
 }
 
 export function CategoryBadge({ category }: { category: PostCategory }) {
@@ -13,7 +13,7 @@ export function CategoryBadge({ category }: { category: PostCategory }) {
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
-      style={{ color, background: bg }}
+      style={{ color, background: bg, border: `1px solid ${color}30` }}
     >
       <span style={{ fontSize: '10px' }}>{emoji}</span>
       {label}

@@ -19,20 +19,28 @@ body {
 
 /* ─── Design tokens ─────────────────────────────── */
 :root {
-  --bg:          #06060a;
-  --bg-2:        #0f1117;
-  --bg-3:        #161b22;
-  --bg-hover:    #1a1d26;
-  --border:      #21262d;
-  --text:        #e6edf3;
-  --text-2:      #8b949e;
-  --text-3:      #484f58;
+  --bg:          #08080f;
+  --bg-2:        #0e0e18;
+  --bg-3:        #15151f;
+  --bg-hover:    rgba(255,255,255,0.04);
+  --border:      #1e2030;
+  --text:        #eaeef4;
+  --text-2:      #8892a4;
+  --text-3:      #4a5168;
   --accent:      #1d9bf0;
-  --accent-dim:  rgba(29,155,240,0.12);
+  --accent-dim:  rgba(29,155,240,0.13);
+
+  /* category colours */
+  --cat-general:     #58a6ff;
+  --cat-events:      #c084fc;
+  --cat-marketplace: #fbbf24;
+  --cat-lost:        #f87171;
+  --cat-promo:       #4ade80;
 
   --radius-sm:   10px;
   --radius-md:   14px;
   --radius-lg:   20px;
+  --radius-xl:   28px;
   --radius-full: 9999px;
 }
 
@@ -52,9 +60,9 @@ body {
 a, button { transition: opacity 150ms ease, background 150ms ease, color 150ms ease, transform 120ms ease; }
 
 /* ─── Post row hover ────────────────────────────── */
-.post-row { transition: background 120ms ease; cursor: pointer; }
-.post-row:hover { background: var(--bg-hover); }
-.post-row:active { background: var(--bg-3); }
+.post-row { transition: background 150ms ease; cursor: pointer; }
+.post-row:hover { background: rgba(255,255,255,0.03); }
+.post-row:active { background: rgba(255,255,255,0.05); }
 
 /* ─── Tap bounce for buttons ────────────────────── */
 .tap { transition: transform 120ms ease, opacity 120ms ease; }
@@ -76,12 +84,24 @@ a, button { transition: opacity 150ms ease, background 150ms ease, color 150ms e
   border-radius: var(--radius-sm);
 }
 
-/* ─── Fade-in animation ─────────────────────────── */
+/* ─── Animations ─────────────────────────────────── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-in { animation: fadeIn 220ms ease both; }
+.fade-in { animation: fadeIn 240ms cubic-bezier(.22,1,.36,1) both; }
+
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-in { animation: popIn 200ms cubic-bezier(.22,1,.36,1) both; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-up { animation: slideUp 280ms cubic-bezier(.22,1,.36,1) both; }
 
 /* ─── Reduced motion ────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

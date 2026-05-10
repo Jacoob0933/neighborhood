@@ -4,10 +4,18 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Heart, MessageCircle, MapPin, MoreHorizontal, Share2 } from 'lucide-react'
-import type { Post } from '@/types/database'
+import type { Post, PostCategory } from '@/types/database'
 import { Avatar } from '@/components/ui/Avatar'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import { createClient } from '@/lib/supabase/client'
+
+const CAT_COLOR: Record<PostCategory, string> = {
+  general:     '#58a6ff',
+  events:      '#c084fc',
+  marketplace: '#fbbf24',
+  lost_found:  '#f87171',
+  promo:       '#4ade80',
+}
 
 interface PostCardProps {
   post: Post
@@ -38,10 +46,16 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
   const hasImages = post.image_urls && post.image_urls.length > 0
 
+  const catColor = CAT_COLOR[post.category]
+
   return (
     <article
       className="post-row flex gap-3 px-4 py-4 fade-in"
-      style={{ borderBottom: '1px solid var(--border)' }}
+      style={{
+        borderBottom: '1px solid var(--border)',
+        borderLeft: `3px solid ${catColor}44`,
+        paddingLeft: 13,
+      }}
     >
       {/* Avatar column */}
       <div className="flex flex-col items-center shrink-0" style={{ width: 40 }}>
