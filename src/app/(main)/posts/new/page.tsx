@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, MapPin, X, ImageIcon, CalendarDays, Users, Clock } from 'lucide-react'
+import { Loader2, MapPin, X, ImageIcon, CalendarDays, Users } from 'lucide-react'
 import type { PostCategory } from '@/types/database'
 import imageCompression from 'browser-image-compression'
 
@@ -413,56 +413,89 @@ export default function NewPostPage() {
             </div>
           )}
 
-          {/* ── Image previews ── */}
-          {images.length > 0 && (
+          {/* ── Photos section ── */}
+          <div>
+            <label className="block text-xs font-semibold mb-2.5 uppercase tracking-widest" style={{ color: 'var(--text-3)' }}>
+              Photos <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(up to 4)</span>
+            </label>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
             <div className="flex gap-2.5 flex-wrap">
+              {/* Previews */}
               {images.map((img, i) => (
-                <div key={i} className="relative group pop-in">
+                <div key={i} className="relative pop-in">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.preview}
                     alt=""
                     className="object-cover"
                     loading="lazy"
-                    style={{
-                      width: 88, height: 88,
-                      borderRadius: 14,
-                      border: '1.5px solid var(--border)',
-                    }}
+                    style={{ width: 90, height: 90, borderRadius: 14, border: '1.5px solid var(--border)' }}
                   />
                   <button
                     type="button"
                     onClick={() => removeImage(i)}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-lg"
-                    style={{ background: '#1a1a2e', border: '1.5px solid var(--border)', color: 'var(--text)' }}
-                  >
-                    ×
-                  </button>
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ background: 'var(--bg-3)', border: '1.5px solid var(--border)', color: 'var(--text)' }}
+                  >×</button>
                 </div>
               ))}
 
-              {/* Add more */}
+              {/* Add button */}
               {images.length < 4 && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImages}
-                  className="tap flex flex-col items-center justify-center gap-1 rounded-2xl"
+                  className="tap flex flex-col items-center justify-center gap-1.5 rounded-2xl transition"
                   style={{
-                    width: 88, height: 88,
-                    border: '2px dashed var(--border)',
-                    color: 'var(--text-3)',
-                    background: 'var(--bg-2)',
-                    fontSize: 11,
+                    width: 90, height: 90,
+                    border: `2px dashed ${images.length > 0 ? activeCat.color + '60' : 'var(--border)'}`,
+                    background: images.length > 0 ? activeCat.bg : 'var(--bg-2)',
+                    color: images.length > 0 ? activeCat.color : 'var(--text-3)',
+                    fontSize: 11, fontWeight: 600,
                   }}
                 >
                   {uploadingImages
-                    ? <Loader2 size={16} className="animate-spin" />
-                    : <><ImageIcon size={16} /><span>Add</span></>}
+                    ? <Loader2 size={18} className="animate-spin" />
+                    : <><ImageIcon size={18} /><span>{images.length > 0 ? 'Add more' : 'Add photo'}</span></>}
                 </button>
               )}
             </div>
-          )}
+          </div>
+
+          {/* ── Location section ── */}
+          <div>
+            <label className="block text-xs font-semibold mb-2.5 uppercase tracking-widest" style={{ color: 'var(--text-3)' }}>
+              Precise location <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+            </label>
+            <button
+              type="button"
+              onClick={detectLocation}
+              disabled={detectingLocation}
+              className="tap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
+              style={{
+                border: `1.5px solid ${location ? '#4ade8060' : 'var(--border)'}`,
+                background: location ? 'rgba(74,222,128,0.1)' : 'var(--bg-2)',
+                color: location ? '#4ade80' : 'var(--text-2)',
+              }}
+            >
+              {detectingLocation
+                ? <Loader2 size={15} className="animate-spin" />
+                : <MapPin size={15} />}
+              {location
+                ? `📍 ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
+                : 'Pin my location'}
+            </button>
+          </div>
 
           {/* Error */}
           {error && (
@@ -473,71 +506,7 @@ export default function NewPostPage() {
               ⚠️ {error}
             </div>
           )}
-        </div>
 
-        {/* ── Bottom action bar ── */}
-        <div
-          className="sticky bottom-0 flex items-center gap-1 px-3 py-3 backdrop-blur-md"
-          style={{
-            background: 'rgba(8,8,15,0.92)',
-            borderTop: '1px solid var(--border)',
-          }}
-        >
-          {/* Photo button */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={images.length >= 4 || uploadingImages}
-            className="tap flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition"
-            style={{
-              color: images.length > 0 ? activeCat.color : 'var(--text-2)',
-              background: images.length > 0 ? activeCat.bg : 'transparent',
-              opacity: images.length >= 4 ? 0.4 : 1,
-            }}
-            title="Add photos"
-          >
-            {uploadingImages
-              ? <Loader2 size={16} className="animate-spin" />
-              : <ImageIcon size={16} />}
-            {images.length > 0 && <span className="text-xs font-bold">{images.length}/4</span>}
-          </button>
-
-          {/* Location button */}
-          <button
-            type="button"
-            onClick={detectLocation}
-            disabled={detectingLocation}
-            className="tap flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition"
-            style={{
-              color: location ? '#4ade80' : 'var(--text-2)',
-              background: location ? 'rgba(74,222,128,0.12)' : 'transparent',
-            }}
-            title={location ? 'Location pinned' : 'Pin location'}
-          >
-            {detectingLocation
-              ? <Loader2 size={16} className="animate-spin" />
-              : <MapPin size={16} />}
-            {location && <span className="text-xs font-bold">Pinned</span>}
-          </button>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Clock hint */}
-          {category === 'events' && eventDate && (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium" style={{ background: 'rgba(192,132,252,0.12)', color: '#c084fc' }}>
-              <Clock size={12} />
-              {eventDate}{eventTime ? ` ${eventTime}` : ''}
-            </div>
-          )}
         </div>
       </form>
     </div>
