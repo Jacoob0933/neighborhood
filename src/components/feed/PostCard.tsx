@@ -26,10 +26,12 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   const likedByMe = post.post_likes?.some(l => l.user_id === currentUserId) ?? false
   const [liked, setLiked] = useState(likedByMe)
   const [likeCount, setLikeCount] = useState(post.post_likes?.length ?? 0)
+  const [heartAnim, setHeartAnim] = useState(false)
 
   async function toggleLike(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
+    if (!liked) { setHeartAnim(true); setTimeout(() => setHeartAnim(false), 400) }
     const supabase = createClient()
     if (liked) {
       await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUserId })
@@ -196,7 +198,7 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
             onMouseEnter={e => { e.currentTarget.style.color = '#f91880'; e.currentTarget.style.background = 'rgba(249,24,128,0.1)' }}
             onMouseLeave={e => { e.currentTarget.style.color = liked ? '#f91880' : 'var(--text-3)'; e.currentTarget.style.background = 'transparent' }}
           >
-            <Heart size={16} fill={liked ? 'currentColor' : 'none'} />
+            <Heart size={16} fill={liked ? 'currentColor' : 'none'} className={heartAnim ? 'heart-pop' : ''} />
             {likeCount > 0 && <span style={{ fontVariantNumeric: 'tabular-nums' }}>{likeCount}</span>}
           </button>
 

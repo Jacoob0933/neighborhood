@@ -57,16 +57,25 @@ body {
 .pb-safe { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 
 /* ─── Transitions ───────────────────────────────── */
-a, button { transition: opacity 150ms ease, background 150ms ease, color 150ms ease, transform 120ms ease; }
+a, button { transition: opacity 160ms ease-out, background 160ms ease-out, color 160ms ease-out, transform 130ms ease-out; }
 
 /* ─── Post row hover ────────────────────────────── */
-.post-row { transition: background 150ms ease; cursor: pointer; }
-.post-row:hover { background: rgba(255,255,255,0.03); }
-.post-row:active { background: rgba(255,255,255,0.05); }
+.post-row { transition: background 180ms ease-out; cursor: pointer; }
+.post-row:hover { background: rgba(255,255,255,0.025); }
+.post-row:active { background: rgba(255,255,255,0.045); }
 
 /* ─── Tap bounce for buttons ────────────────────── */
-.tap { transition: transform 120ms ease, opacity 120ms ease; }
-.tap:active { transform: scale(0.93); }
+.tap { transition: transform 130ms cubic-bezier(.22,1,.36,1), opacity 130ms ease-out; }
+.tap:active { transform: scale(0.96); }
+
+/* ─── Like heart pop ─────────────────────────────── */
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.heart-pop { animation: heartPop 380ms cubic-bezier(.22,1,.36,1); }
 
 /* ─── Skeleton shimmer ──────────────────────────── */
 @keyframes shimmer {
