@@ -271,9 +271,17 @@ export default function SettingsPage() {
         </button>
       </Section>
 
-      <p className="text-center text-xs mt-8 mb-4" style={{ color: 'var(--text-3)' }}>
-        Neighbr · v1.0
-      </p>
+      <div className="text-center mt-8 mb-4 flex items-center justify-center gap-3">
+        <span className="text-xs" style={{ color: '#333355' }}>Neighbr · v1.0</span>
+        <span style={{ color: '#222240' }}>·</span>
+        <a
+          href="/privacy"
+          className="text-xs font-medium underline"
+          style={{ color: '#1d9bf0' }}
+        >
+          Privacy Policy
+        </a>
+      </div>
 
       {/* Delete confirm modal */}
       {showDeleteConfirm && (
