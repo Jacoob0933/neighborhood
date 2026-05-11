@@ -32,6 +32,7 @@ export default function EditProfilePage() {
   const [city, setCity] = useState('')
   const [neighborhood, setNeighborhood] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [savedCoords, setSavedCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [detectingLocation, setDetectingLocation] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -64,7 +65,11 @@ export default function EditProfilePage() {
         setFullNameLocked(profile.full_name_locked ?? false)
         setUsernameUpdatedAt(profile.username_updated_at ?? null)
         setLocationUpdatedAt(profile.location_updated_at ?? null)
-        setHasExistingLocation(profile.lat != null && profile.lng != null)
+        const hasLoc = profile.lat != null && profile.lng != null
+        setHasExistingLocation(hasLoc)
+        if (hasLoc) {
+          setSavedCoords({ lat: profile.lat as number, lng: profile.lng as number })
+        }
       }
       setLoading(false)
     }
@@ -296,35 +301,80 @@ export default function EditProfilePage() {
               </span>
             )}
           </div>
+          {/* Current saved location pill — always visible when coords exist */}
+          {savedCoords && !coords && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2 text-xs"
+              style={{ background: 'rgba(29,155,240,0.08)', border: '1px solid rgba(29,155,240,0.2)' }}
+            >
+              <MapPin size={12} style={{ color: '#1d9bf0', flexShrink: 0 }} />
+              <span style={{ color: 'var(--text-2)' }}>
+                Aktuální GPS:&nbsp;
+                <span className="font-mono font-semibold" style={{ color: '#1d9bf0' }}>
+                  {savedCoords.lat.toFixed(5)}, {savedCoords.lng.toFixed(5)}
+                </span>
+              </span>
+              <a
+                href={`https://www.google.com/maps?q=${savedCoords.lat},${savedCoords.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto text-xs underline shrink-0"
+                style={{ color: '#1d9bf0' }}
+              >
+                Zobrazit
+              </a>
+            </div>
+          )}
+
+          {/* New location just detected */}
+          {coords && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2 text-xs"
+              style={{ background: 'rgba(0,186,124,0.08)', border: '1px solid rgba(0,186,124,0.3)' }}
+            >
+              <MapPin size={12} style={{ color: '#00ba7c', flexShrink: 0 }} />
+              <span style={{ color: 'var(--text-2)' }}>
+                Nová GPS:&nbsp;
+                <span className="font-mono font-semibold" style={{ color: '#00ba7c' }}>
+                  {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setCoords(null)}
+                className="ml-auto text-xs shrink-0"
+                style={{ color: 'var(--text-3)' }}
+              >
+                ✕ Zrušit
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={detectLocation}
             disabled={detectingLocation || !locationCanChange}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition"
             style={{
-              background: !locationCanChange
-                ? 'var(--bg-2)'
-                : coords
-                  ? 'rgba(29,155,240,0.12)'
-                  : 'var(--bg-2)',
-              border: `1px solid ${!locationCanChange ? 'var(--border)' : coords ? '#1d9bf0' : 'var(--border)'}`,
-              color: !locationCanChange ? 'var(--text-3)' : coords ? '#1d9bf0' : 'var(--text-2)',
+              background: !locationCanChange ? 'var(--bg-2)' : 'var(--bg-2)',
+              border: `1px solid ${!locationCanChange ? 'var(--border)' : 'var(--border)'}`,
+              color: !locationCanChange ? 'var(--text-3)' : 'var(--text-2)',
               opacity: !locationCanChange ? 0.5 : 1,
               cursor: !locationCanChange ? 'not-allowed' : 'pointer',
             }}
           >
             {detectingLocation ? <Loader2 size={15} className="animate-spin" /> : <MapPin size={15} />}
             {!locationCanChange
-              ? `Location locked until ${locationNextChange ? format(locationNextChange, 'MMM d') : '...'}`
+              ? `Zamčeno do ${locationNextChange ? format(locationNextChange, 'd. M. yyyy') : '...'}`
               : coords
-                ? `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
+                ? 'Detekovat znovu'
                 : hasExistingLocation
-                  ? 'Update GPS location'
-                  : 'Detect my location'}
+                  ? 'Aktualizovat GPS'
+                  : 'Detekovat polohu'}
           </button>
           {!locationCanChange && (
             <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
-              GPS can be updated once every {GPS_COOLDOWN_DAYS} days to prevent abuse.
+              GPS lze měnit jednou za {GPS_COOLDOWN_DAYS} dní (ochrana proti zneužití).
             </p>
           )}
         </div>
