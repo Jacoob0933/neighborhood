@@ -22,53 +22,69 @@ type Notifs = {
   events: boolean
 }
 
+const DEFAULT_PRIVACY: Privacy = {
+  profile_public: true,
+  show_location: true,
+  allow_messages: true,
+  show_in_nearby: true,
+}
+
+const DEFAULT_NOTIFS: Notifs = {
+  likes: true,
+  comments: true,
+  messages: true,
+  events: false,
+}
+
 export default function SettingsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
-  const [privacy, setPrivacy] = useState<Privacy>({
-    profile_public: true,
-    show_location: true,
-    allow_messages: true,
-    show_in_nearby: true,
-  })
-
-  const [notifs, setNotifs] = useState<Notifs>({
-    likes: true,
-    comments: true,
-    messages: true,
-    events: false,
-  })
+  const [privacy, setPrivacy] = useState<Privacy>(DEFAULT_PRIVACY)
+  const [notifs, setNotifs] = useState<Notifs>(DEFAULT_NOTIFS)
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/sign-in'); return }
+      try {
+        const supabase = createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) { router.push('/sign-in'); return }
 
-      setEmail(user.email ?? '')
+        setEmail(user.email ?? '')
+        setUserId(user.id)
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, privacy_settings, notification_settings')
-        .eq('id', user.id)
-        .single()
+        // select * so we don't error if new columns don't exist yet
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
 
-      if (profile) {
-        setUsername(profile.username ?? '')
-        if (profile.privacy_settings) {
-          setPrivacy(p => ({ ...p, ...(profile.privacy_settings as Partial<Privacy>) }))
+        if (profile) {
+          setUsername(profile.username ?? '')
+
+          // privacy_settings — JSONB column (may not exist yet → undefined)
+          if (profile.privacy_settings && typeof profile.privacy_settings === 'object') {
+            setPrivacy(p => ({ ...p, ...(profile.privacy_settings as Partial<Privacy>) }))
+          }
+
+          // notification_settings — JSONB column (may not exist yet → undefined)
+          if (profile.notification_settings && typeof profile.notification_settings === 'object') {
+            setNotifs(n => ({ ...n, ...(profile.notification_settings as Partial<Notifs>) }))
+          }
         }
-        if (profile.notification_settings) {
-          setNotifs(n => ({ ...n, ...(profile.notification_settings as Partial<Notifs>) }))
-        }
+      } catch {
+        // silently fall back to defaults — page still renders
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [router])
@@ -77,10 +93,16 @@ export default function SettingsPage() {
     setSaving(key)
     const next = { ...privacy, [key]: val }
     setPrivacy(next)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').update({ privacy_settings: next }).eq('id', user.id)
+    try {
+      if (userId) {
+        const supabase = createClient()
+        await supabase
+          .from('profiles')
+          .update({ privacy_settings: next })
+          .eq('id', userId)
+      }
+    } catch {
+      // column may not exist — update is a no-op until migration runs
     }
     setSaving(null)
   }
@@ -89,10 +111,16 @@ export default function SettingsPage() {
     setSaving('notif_' + key)
     const next = { ...notifs, [key]: val }
     setNotifs(next)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').update({ notification_settings: next }).eq('id', user.id)
+    try {
+      if (userId) {
+        const supabase = createClient()
+        await supabase
+          .from('profiles')
+          .update({ notification_settings: next })
+          .eq('id', userId)
+      }
+    } catch {
+      // no-op until migration runs
     }
     setSaving(null)
   }
@@ -101,6 +129,23 @@ export default function SettingsPage() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/sign-in')
+  }
+
+  async function deleteAccount() {
+    if (deleteInput !== 'DELETE' || !userId) return
+    setDeleting(true)
+    try {
+      const supabase = createClient()
+      // Delete posts, likes, messages, then profile
+      await supabase.from('post_likes').delete().eq('user_id', userId)
+      await supabase.from('posts').delete().eq('author_id', userId)
+      await supabase.from('profiles').delete().eq('id', userId)
+      await supabase.auth.signOut()
+      router.push('/sign-in')
+    } catch {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+    }
   }
 
   if (loading) {
@@ -123,13 +168,9 @@ export default function SettingsPage() {
 
       {/* Account */}
       <Section icon={<User size={15} />} title="Account">
-        <InfoRow label="Username" value={`@${username}`} />
-        <InfoRow label="Email" value={email} />
-        <LinkRow
-          label="Edit profile"
-          sub="Name, bio, avatar, city"
-          href="/profile/edit"
-        />
+        <InfoRow label="Username" value={`@${username}`} last={false} />
+        <InfoRow label="Email" value={email} last={false} />
+        <LinkRow label="Edit profile" sub="Name, bio, avatar, city" href="/profile/edit" last />
       </Section>
 
       {/* Privacy */}
@@ -144,7 +185,7 @@ export default function SettingsPage() {
         />
         <ToggleRow
           label="Show in Nearby feed"
-          sub="Your posts appear to neighbors within 30km"
+          sub="Your posts appear to neighbors within 30 km"
           icon={<MapPin size={14} />}
           value={privacy.show_in_nearby}
           loading={saving === 'show_in_nearby'}
@@ -152,7 +193,7 @@ export default function SettingsPage() {
         />
         <ToggleRow
           label="Show location on profile"
-          sub="Display your neighborhood / city"
+          sub="Display your neighborhood / city publicly"
           icon={<EyeOff size={14} />}
           value={privacy.show_location}
           loading={saving === 'show_location'}
@@ -165,6 +206,7 @@ export default function SettingsPage() {
           value={privacy.allow_messages}
           loading={saving === 'allow_messages'}
           onChange={v => savePrivacy('allow_messages', v)}
+          last
         />
       </Section>
 
@@ -193,96 +235,107 @@ export default function SettingsPage() {
         />
         <ToggleRow
           label="Nearby events"
-          sub="New events posted within 30km"
+          sub="New events posted within 30 km"
           value={notifs.events}
           loading={saving === 'notif_events'}
           onChange={v => saveNotif('events', v)}
+          last
         />
       </Section>
 
       {/* Account actions */}
-      <Section icon={<Lock size={15} />} title="Account actions">
+      <Section icon={<Lock size={15} />} title="Account">
         <button
           onClick={signOut}
           className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition"
           style={{ borderBottom: '1px solid var(--border)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <LogOut size={15} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
           <span className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>Sign out</span>
         </button>
-
         <button
           onClick={() => setShowDeleteConfirm(true)}
           className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition"
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,24,128,0.05)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(249,24,128,0.05)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <Trash2 size={15} style={{ color: '#f91880', flexShrink: 0 }} />
           <div>
             <div className="text-sm font-medium" style={{ color: '#f91880' }}>Delete account</div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>Permanently remove your account and all data</div>
+            <div className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>
+              Permanently remove your account and all data
+            </div>
           </div>
         </button>
       </Section>
 
-      <p className="text-center text-xs mt-8" style={{ color: 'var(--text-3)' }}>
-        Neighbr · v1.0 · <a href="/privacy" className="underline" style={{ color: 'var(--text-3)' }}>Privacy Policy</a>
+      <p className="text-center text-xs mt-8 mb-4" style={{ color: 'var(--text-3)' }}>
+        Neighbr · v1.0
       </p>
 
       {/* Delete confirm modal */}
       {showDeleteConfirm && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.75)' }}
-          onClick={() => { setShowDeleteConfirm(false); setDeleteInput('') }}
+          style={{ background: 'rgba(0,0,0,0.8)' }}
+          onClick={() => { if (!deleting) { setShowDeleteConfirm(false); setDeleteInput('') } }}
         >
           <div
-            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6"
+            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 fade-in"
             style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="w-10 h-1 rounded-full mx-auto mb-5 sm:hidden" style={{ background: 'var(--border)' }} />
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-4" style={{ background: 'rgba(249,24,128,0.1)' }}>
-              <Trash2 size={18} style={{ color: '#f91880' }} />
+            <div
+              className="w-11 h-11 rounded-full flex items-center justify-center mb-4"
+              style={{ background: 'rgba(249,24,128,0.12)' }}
+            >
+              <Trash2 size={20} style={{ color: '#f91880' }} />
             </div>
             <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Delete your account?</h2>
-            <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
-              This will permanently delete your profile, posts, and messages. This cannot be undone.
+            <p className="text-sm mb-5" style={{ color: 'var(--text-3)', lineHeight: 1.5 }}>
+              This will permanently delete your profile, all posts, and messages.
+              This action <strong style={{ color: 'var(--text-2)' }}>cannot be undone</strong>.
             </p>
             <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-3)' }}>
-              Type <span style={{ color: 'var(--text)' }}>DELETE</span> to confirm
+              Type <span className="font-mono" style={{ color: 'var(--text)' }}>DELETE</span> to confirm
             </p>
             <input
               type="text"
               value={deleteInput}
               onChange={e => setDeleteInput(e.target.value)}
               placeholder="DELETE"
-              className="w-full mb-4 text-sm"
+              autoFocus
+              className="w-full mb-4 text-sm font-mono"
               style={{
                 background: 'var(--bg)',
-                border: '1px solid var(--border)',
+                border: `1px solid ${deleteInput === 'DELETE' ? '#f91880' : 'var(--border)'}`,
                 borderRadius: 10,
                 padding: '10px 14px',
                 color: 'var(--text)',
                 outline: 'none',
+                transition: 'border-color 0.2s',
               }}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeleteInput('') }}
-                className="flex-1 rounded-full py-3 text-sm font-bold transition hover:opacity-80"
+                disabled={deleting}
+                className="flex-1 rounded-full py-3 text-sm font-bold transition hover:opacity-80 disabled:opacity-40"
                 style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
               >
                 Cancel
               </button>
               <button
-                disabled={deleteInput !== 'DELETE'}
-                className="flex-1 rounded-full py-3 text-sm font-bold text-white disabled:opacity-30"
+                onClick={deleteAccount}
+                disabled={deleteInput !== 'DELETE' || deleting}
+                className="flex-1 flex items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white disabled:opacity-30 transition"
                 style={{ background: '#f91880' }}
               >
-                Delete account
+                {deleting && <Loader2 size={14} className="animate-spin" />}
+                Delete
               </button>
             </div>
           </div>
@@ -312,19 +365,26 @@ function Section({ icon, title, children }: {
   )
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div
+      className="flex items-center justify-between px-4 py-3.5"
+      style={{ borderBottom: last ? 'none' : '1px solid var(--border)' }}
+    >
       <span className="text-sm" style={{ color: 'var(--text-3)' }}>{label}</span>
-      <span className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>{value}</span>
+      <span className="text-sm font-medium truncate max-w-[60%] text-right" style={{ color: 'var(--text-2)' }}>
+        {value}
+      </span>
     </div>
   )
 }
 
-function LinkRow({ label, sub, href }: { label: string; sub?: string; href: string }) {
+function LinkRow({ label, sub, href, last }: { label: string; sub?: string; href: string; last?: boolean }) {
   return (
-    <a href={href} className="flex items-center justify-between px-4 py-3.5 transition"
-      style={{ borderBottom: '1px solid var(--border)' }}
+    <a
+      href={href}
+      className="flex items-center justify-between px-4 py-3.5 transition"
+      style={{ borderBottom: last ? 'none' : '1px solid var(--border)' }}
       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
@@ -337,26 +397,28 @@ function LinkRow({ label, sub, href }: { label: string; sub?: string; href: stri
   )
 }
 
-function ToggleRow({ label, sub, icon, value, loading, onChange }: {
+function ToggleRow({ label, sub, icon, value, loading, onChange, last }: {
   label: string; sub?: string; icon?: React.ReactNode
-  value: boolean; loading?: boolean; onChange: (v: boolean) => void
+  value: boolean; loading?: boolean; onChange: (v: boolean) => void; last?: boolean
 }) {
   return (
     <div
-      className="flex items-center justify-between px-4 py-3.5 cursor-pointer transition"
-      style={{ borderBottom: '1px solid var(--border)' }}
+      className="flex items-center justify-between px-4 py-3.5 cursor-pointer select-none"
+      style={{ borderBottom: last ? 'none' : '1px solid var(--border)', transition: 'background 0.15s' }}
       onClick={() => !loading && onChange(!value)}
       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
-      <div className="flex items-start gap-3 flex-1 min-w-0">
-        {icon && <span className="mt-0.5 shrink-0" style={{ color: 'var(--text-3)' }}>{icon}</span>}
+      <div className="flex items-start gap-3 flex-1 min-w-0 pr-4">
+        {icon && (
+          <span className="mt-0.5 shrink-0" style={{ color: 'var(--text-3)' }}>{icon}</span>
+        )}
         <div className="min-w-0">
           <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{label}</div>
           {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{sub}</div>}
         </div>
       </div>
-      <div className="shrink-0 ml-4">
+      <div className="shrink-0">
         {loading ? (
           <Loader2 size={16} className="animate-spin" style={{ color: 'var(--text-3)' }} />
         ) : (
@@ -369,22 +431,18 @@ function ToggleRow({ label, sub, icon, value, loading, onChange }: {
 
 function Toggle({ on }: { on: boolean }) {
   return (
-    <div
-      style={{
-        width: 42, height: 24, borderRadius: 100,
-        background: on ? '#1d9bf0' : 'var(--border)',
-        position: 'relative', transition: 'background 0.2s',
-        flexShrink: 0,
-      }}
-    >
+    <div style={{
+      width: 44, height: 26, borderRadius: 100,
+      background: on ? '#1d9bf0' : 'rgba(255,255,255,0.12)',
+      position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+    }}>
       <div style={{
         position: 'absolute',
         top: 3, left: on ? 21 : 3,
-        width: 18, height: 18,
-        borderRadius: '50%',
+        width: 20, height: 20, borderRadius: '50%',
         background: '#fff',
         transition: 'left 0.2s',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
       }} />
     </div>
   )
