@@ -36,6 +36,7 @@ export interface Post {
   profiles?: Profile
   post_likes?: { user_id: string }[]
   _likes_count?: number
+  _distance_m?: number
 }
 
 export interface Event {

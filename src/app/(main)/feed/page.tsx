@@ -7,7 +7,7 @@ import { PostCard } from '@/components/feed/PostCard'
 import { CategoryFilter } from '@/components/feed/CategoryFilter'
 import { FeedInfinite } from '@/components/feed/FeedInfinite'
 import { ScopeToggle } from '@/components/feed/ScopeToggle'
-import { getNearbyAuthorIds } from '@/lib/nearby'
+import { getNearbyAuthorDistances } from '@/lib/nearby'
 
 const PAGE_SIZE = 20
 const RADIUS_M = 30_000 // 30km
@@ -42,11 +42,14 @@ async function FeedPosts({
   // pre-filtered set of profiles) so the filter works even if no SQL RPC exists.
   // If the helper can't resolve any neighbors we return an empty list rather
   // than falling through to "show everything" (the previous silent-failure bug).
+  let distanceById: Record<string, number> = {}
   if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
-    const nearbyIds = await getNearbyAuthorIds(supabase, userLat, userLng, RADIUS_M)
+    const distMap = await getNearbyAuthorDistances(supabase, userLat, userLng, RADIUS_M)
     usedNearby = true
 
-    if (nearbyIds && nearbyIds.length > 0) {
+    if (distMap && Object.keys(distMap).length > 0) {
+      distanceById = distMap
+      const nearbyIds = Object.keys(distMap)
       let query = supabase
         .from('posts')
         .select('*')
@@ -142,6 +145,7 @@ async function FeedPosts({
       ...p,
       profiles: profileMap[p.author_id as string],
       post_likes: likesByPost[p.id as string] ?? [],
+      _distance_m: distanceById[p.author_id as string],
     }))
   }
 
@@ -255,6 +259,13 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
 
   const locationLabel = profile?.neighborhood || profile?.city || 'Set location'
 
+  // For the debug pill below the header — count nearby authors so we can show it
+  let nearbyAuthorCount: number | null = null
+  if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
+    const dist = await getNearbyAuthorDistances(supabase, userLat, userLng, RADIUS_M)
+    nearbyAuthorCount = dist ? Object.keys(dist).length : null
+  }
+
   return (
     <div>
       {/* Sticky header */}
@@ -268,11 +279,29 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         </div>
 
         {/* Location row */}
-        <div className="flex items-center justify-between px-4 pb-2">
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-3)' }}>
+        <div className="flex items-center justify-between px-4 pb-2 gap-2">
+          <div className="flex items-center gap-1.5 text-xs min-w-0" style={{ color: 'var(--text-3)' }}>
             <MapPin size={10} style={{ color: 'var(--accent)' }} />
-            <span>{scope === 'nearby' ? `${locationLabel} · within 30km` : 'Showing posts worldwide'}</span>
+            <span className="truncate">
+              {scope === 'nearby' ? `${locationLabel} · within 30km` : 'Showing posts worldwide'}
+            </span>
           </div>
+          {scope === 'nearby' && hasLocation && (
+            <Link
+              href="/debug/me"
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 hover:opacity-80"
+              style={{
+                background: 'rgba(29,155,240,0.12)',
+                color: '#1d9bf0',
+                fontFamily: 'monospace',
+              }}
+              title="Tap for full GPS debug"
+            >
+              {userLat != null && userLng != null
+                ? `${userLat.toFixed(3)},${userLng.toFixed(3)} · ${nearbyAuthorCount ?? 0} near`
+                : 'no gps'}
+            </Link>
+          )}
         </div>
 
         <Suspense>

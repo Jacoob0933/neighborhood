@@ -47,6 +47,12 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   const location = post.neighborhood || post.city
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
   const hasImages = post.image_urls && post.image_urls.length > 0
+  const distanceM = post._distance_m
+  const distanceLabel = distanceM != null
+    ? distanceM < 1000
+      ? `${Math.round(distanceM)} m`
+      : `${(distanceM / 1000).toFixed(distanceM < 10_000 ? 1 : 0)} km`
+    : null
 
   const catColor = CAT_COLOR[post.category]
 
@@ -168,11 +174,27 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
           </Link>
         )}
 
-        {/* Location pill */}
-        {location && (
-          <div className="flex items-center gap-1 mt-2" style={{ color: 'var(--text-3)' }}>
-            <MapPin size={11} />
-            <span className="text-xs">{location}</span>
+        {/* Location pill + distance */}
+        {(location || distanceLabel) && (
+          <div className="flex items-center gap-2 mt-2 flex-wrap" style={{ color: 'var(--text-3)' }}>
+            {location && (
+              <div className="flex items-center gap-1">
+                <MapPin size={11} />
+                <span className="text-xs">{location}</span>
+              </div>
+            )}
+            {distanceLabel && (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: 'rgba(29,155,240,0.12)',
+                  color: '#1d9bf0',
+                  letterSpacing: 0.2,
+                }}
+              >
+                {distanceLabel}
+              </span>
+            )}
           </div>
         )}
 

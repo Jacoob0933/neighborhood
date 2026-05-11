@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { PostCategory } from '@/types/database'
-import { getNearbyAuthorIds } from '@/lib/nearby'
+import { getNearbyAuthorDistances } from '@/lib/nearby'
 
 const PAGE_SIZE = 20
 const RADIUS_M = 30_000
@@ -34,11 +34,14 @@ export async function GET(request: Request) {
 
   // Nearby: filter by AUTHOR's profile GPS, computed in TS (no RPC dependency).
   // Empty result is preferable to silently showing everything if no neighbors are found.
+  let distanceById: Record<string, number> = {}
   if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
-    const nearbyIds = await getNearbyAuthorIds(supabase, userLat, userLng, RADIUS_M)
+    const distMap = await getNearbyAuthorDistances(supabase, userLat, userLng, RADIUS_M)
     usedNearby = true
 
-    if (nearbyIds && nearbyIds.length > 0) {
+    if (distMap && Object.keys(distMap).length > 0) {
+      distanceById = distMap
+      const nearbyIds = Object.keys(distMap)
       let query = supabase
         .from('posts')
         .select('*')
@@ -122,6 +125,7 @@ export async function GET(request: Request) {
       ...p,
       profiles: profileMap[p.author_id as string],
       post_likes: likesByPost[p.id as string] ?? [],
+      _distance_m: distanceById[p.author_id as string],
     }))
   }
 

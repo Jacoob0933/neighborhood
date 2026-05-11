@@ -39,6 +39,22 @@ export async function getNearbyAuthorIds(
   lng: number,
   radiusM: number,
 ): Promise<string[] | null> {
+  const map = await getNearbyAuthorDistances(supabase, lat, lng, radiusM)
+  if (!map) return null
+  return Object.keys(map)
+}
+
+/**
+ * Same as getNearbyAuthorIds but returns a map of {authorId -> distanceMeters}.
+ * Used to show distance pills on each post for debugging and UX.
+ */
+export async function getNearbyAuthorDistances(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  lat: number,
+  lng: number,
+  radiusM: number,
+): Promise<Record<string, number> | null> {
   // Bounding box. 1° latitude ≈ 111 km. 1° longitude shrinks with cos(lat).
   const latDeg = radiusM / 111_000
   const cosLat = Math.max(0.01, Math.cos((lat * Math.PI) / 180))
@@ -56,12 +72,13 @@ export async function getNearbyAuthorIds(
 
   if (error || !data) return null
 
-  return data
-    .filter(p => {
-      const pLat = p.lat as number | null
-      const pLng = p.lng as number | null
-      if (pLat == null || pLng == null) return false
-      return haversineMeters(lat, lng, pLat, pLng) <= radiusM
-    })
-    .map(p => p.id as string)
+  const out: Record<string, number> = {}
+  for (const p of data) {
+    const pLat = p.lat as number | null
+    const pLng = p.lng as number | null
+    if (pLat == null || pLng == null) continue
+    const d = haversineMeters(lat, lng, pLat, pLng)
+    if (d <= radiusM) out[p.id as string] = d
+  }
+  return out
 }
