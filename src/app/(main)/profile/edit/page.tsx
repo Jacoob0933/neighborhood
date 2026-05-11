@@ -309,7 +309,7 @@ export default function EditProfilePage() {
             >
               <MapPin size={12} style={{ color: '#1d9bf0', flexShrink: 0 }} />
               <span style={{ color: 'var(--text-2)' }}>
-                Aktuální GPS:&nbsp;
+                Saved GPS:&nbsp;
                 <span className="font-mono font-semibold" style={{ color: '#1d9bf0' }}>
                   {savedCoords.lat.toFixed(5)}, {savedCoords.lng.toFixed(5)}
                 </span>
@@ -321,7 +321,7 @@ export default function EditProfilePage() {
                 className="ml-auto text-xs underline shrink-0"
                 style={{ color: '#1d9bf0' }}
               >
-                Zobrazit
+                View
               </a>
             </div>
           )}
@@ -334,7 +334,7 @@ export default function EditProfilePage() {
             >
               <MapPin size={12} style={{ color: '#00ba7c', flexShrink: 0 }} />
               <span style={{ color: 'var(--text-2)' }}>
-                Nová GPS:&nbsp;
+                New GPS:&nbsp;
                 <span className="font-mono font-semibold" style={{ color: '#00ba7c' }}>
                   {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
                 </span>
@@ -345,7 +345,7 @@ export default function EditProfilePage() {
                 className="ml-auto text-xs shrink-0"
                 style={{ color: 'var(--text-3)' }}
               >
-                ✕ Zrušit
+                ✕ Cancel
               </button>
             </div>
           )}
@@ -365,16 +365,16 @@ export default function EditProfilePage() {
           >
             {detectingLocation ? <Loader2 size={15} className="animate-spin" /> : <MapPin size={15} />}
             {!locationCanChange
-              ? `Zamčeno do ${locationNextChange ? format(locationNextChange, 'd. M. yyyy') : '...'}`
+              ? `Locked until ${locationNextChange ? format(locationNextChange, 'MMM d, yyyy') : '...'}`
               : coords
-                ? 'Detekovat znovu'
+                ? 'Detect again'
                 : hasExistingLocation
-                  ? 'Aktualizovat GPS'
-                  : 'Detekovat polohu'}
+                  ? 'Update GPS'
+                  : 'Detect location'}
           </button>
           {!locationCanChange && (
             <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
-              GPS lze měnit jednou za {GPS_COOLDOWN_DAYS} dní (ochrana proti zneužití).
+              GPS can be updated once every {GPS_COOLDOWN_DAYS} days to prevent misuse.
             </p>
           )}
         </div>
