@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, CalendarDays, MessageCircle, User, LogOut, PenLine } from 'lucide-react'
+import { Home, CalendarDays, MessageCircle, User, LogOut, PenLine, Settings } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NeighbrLogo } from '@/components/ui/NeighbrLogo'
 
@@ -11,6 +11,7 @@ const links = [
   { href: '/events',      icon: CalendarDays, label: 'Events',   color: '#c084fc' },
   { href: '/messages',    icon: MessageCircle,label: 'Messages', color: '#4ade80' },
   { href: '/profile/me',  icon: User,         label: 'Profile',  color: '#fbbf24' },
+  { href: '/settings',    icon: Settings,     label: 'Settings', color: '#94a3b8' },
 ]
 
 export function SidebarNav() {
