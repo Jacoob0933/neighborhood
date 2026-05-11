@@ -7,7 +7,6 @@ export const metadata = {
 }
 
 const LAST_UPDATED = 'May 11, 2025'
-const CONTACT_EMAIL = 'privacy@neighbr.app'
 const APP_NAME = 'Neighbr'
 
 export default function PrivacyPage() {
@@ -115,7 +114,7 @@ export default function PrivacyPage() {
               'Objection — object to certain processing of your data',
             ].map(item => <li key={item} style={{ fontSize: 14 }}>{item}</li>)}
           </ul>
-          <P>To exercise any of these rights, contact us at <A href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</A>.</P>
+          <P>To exercise any of these rights, please contact us through the app.</P>
         </S>
 
         <S title="7. Cookies & Tracking">
@@ -157,15 +156,7 @@ export default function PrivacyPage() {
         </S>
 
         <S title="12. Contact Us">
-          <P>If you have any questions about this Privacy Policy or our data practices, contact us at:</P>
-          <div style={{
-            marginTop: 16, padding: '16px 20px', borderRadius: 14,
-            background: 'rgba(29,155,240,0.07)', border: '1px solid rgba(29,155,240,0.18)',
-            fontSize: 14, lineHeight: 1.8, color: '#9090b8',
-          }}>
-            <div style={{ fontWeight: 700, color: '#c0c0e0', marginBottom: 4 }}>{APP_NAME}</div>
-            <div>Email: <A href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</A></div>
-          </div>
+          <P>If you have any questions about this Privacy Policy or our data practices, please reach out through the app.</P>
         </S>
 
         {/* Footer */}
