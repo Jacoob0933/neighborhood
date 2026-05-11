@@ -351,14 +351,14 @@ function Section({ icon, title, children }: {
   icon?: React.ReactNode; title: string; children: React.ReactNode
 }) {
   return (
-    <div className="mt-6 mx-4">
-      <div className="flex items-center gap-2 mb-2 px-1">
-        <span style={{ color: 'var(--text-3)' }}>{icon}</span>
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+    <div className="mt-7 mx-4">
+      <div className="flex items-center gap-2 mb-2.5 px-1">
+        <span style={{ color: '#1d9bf0' }}>{icon}</span>
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-2)' }}>
           {title}
         </span>
       </div>
-      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--bg-2)' }}>
+      <div className="rounded-2xl" style={{ border: '1px solid rgba(255,255,255,0.08)', background: '#10101e', overflow: 'hidden' }}>
         {children}
       </div>
     </div>
@@ -368,11 +368,11 @@ function Section({ icon, title, children }: {
 function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
     <div
-      className="flex items-center justify-between px-4 py-3.5"
-      style={{ borderBottom: last ? 'none' : '1px solid var(--border)' }}
+      className="flex items-center justify-between px-4 py-4"
+      style={{ borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.06)' }}
     >
-      <span className="text-sm" style={{ color: 'var(--text-3)' }}>{label}</span>
-      <span className="text-sm font-medium truncate max-w-[60%] text-right" style={{ color: 'var(--text-2)' }}>
+      <span className="text-sm font-medium" style={{ color: '#888899' }}>{label}</span>
+      <span className="text-sm font-semibold truncate max-w-[60%] text-right" style={{ color: '#d0d0e8' }}>
         {value}
       </span>
     </div>
@@ -383,16 +383,16 @@ function LinkRow({ label, sub, href, last }: { label: string; sub?: string; href
   return (
     <a
       href={href}
-      className="flex items-center justify-between px-4 py-3.5 transition"
-      style={{ borderBottom: last ? 'none' : '1px solid var(--border)' }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+      className="flex items-center justify-between px-4 py-4 transition-colors"
+      style={{ borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.06)' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
       <div>
-        <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{label}</div>
-        {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{sub}</div>}
+        <div className="text-sm font-semibold" style={{ color: '#e0e0f0' }}>{label}</div>
+        {sub && <div className="text-xs mt-0.5" style={{ color: '#666680' }}>{sub}</div>}
       </div>
-      <ChevronRight size={15} style={{ color: 'var(--text-3)' }} />
+      <ChevronRight size={15} style={{ color: '#444460' }} />
     </a>
   )
 }
@@ -403,24 +403,24 @@ function ToggleRow({ label, sub, icon, value, loading, onChange, last }: {
 }) {
   return (
     <div
-      className="flex items-center justify-between px-4 py-3.5 cursor-pointer select-none"
-      style={{ borderBottom: last ? 'none' : '1px solid var(--border)', transition: 'background 0.15s' }}
+      className="flex items-center justify-between px-4 py-4 cursor-pointer select-none transition-colors"
+      style={{ borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.06)' }}
       onClick={() => !loading && onChange(!value)}
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
       <div className="flex items-start gap-3 flex-1 min-w-0 pr-4">
         {icon && (
-          <span className="mt-0.5 shrink-0" style={{ color: 'var(--text-3)' }}>{icon}</span>
+          <span className="mt-0.5 shrink-0" style={{ color: '#666680' }}>{icon}</span>
         )}
         <div className="min-w-0">
-          <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{label}</div>
-          {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{sub}</div>}
+          <div className="text-sm font-semibold" style={{ color: '#e0e0f0' }}>{label}</div>
+          {sub && <div className="text-xs mt-1" style={{ color: '#666680' }}>{sub}</div>}
         </div>
       </div>
       <div className="shrink-0">
         {loading ? (
-          <Loader2 size={16} className="animate-spin" style={{ color: 'var(--text-3)' }} />
+          <Loader2 size={16} className="animate-spin" style={{ color: '#666680' }} />
         ) : (
           <Toggle on={value} />
         )}
@@ -432,17 +432,18 @@ function ToggleRow({ label, sub, icon, value, loading, onChange, last }: {
 function Toggle({ on }: { on: boolean }) {
   return (
     <div style={{
-      width: 44, height: 26, borderRadius: 100,
-      background: on ? '#1d9bf0' : 'rgba(255,255,255,0.12)',
+      width: 46, height: 28, borderRadius: 100,
+      background: on ? '#1d9bf0' : 'rgba(255,255,255,0.15)',
       position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+      border: on ? 'none' : '1px solid rgba(255,255,255,0.1)',
     }}>
       <div style={{
         position: 'absolute',
-        top: 3, left: on ? 21 : 3,
+        top: on ? 3 : 4, left: on ? 22 : 4,
         width: 20, height: 20, borderRadius: '50%',
         background: '#fff',
-        transition: 'left 0.2s',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+        transition: 'left 0.18s ease',
+        boxShadow: '0 1px 5px rgba(0,0,0,0.4)',
       }} />
     </div>
   )
