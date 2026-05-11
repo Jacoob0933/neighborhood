@@ -36,12 +36,13 @@ async function FeedPosts({
   let posts: RawPost[] = []
   let usedNearby = false
 
-  // Try GPS-based query if scope is nearby and user has location
-  // Use lat/lng directly from profile — do NOT call get_my_coords RPC
-  // (that RPC reads from the PostGIS geography column which is not kept in sync)
+  // Filter by AUTHOR's profile GPS — not the post's location field.
+  // posts_near filtered by post.location which most posts don't have (optional pin).
+  // posts_by_nearby_authors joins posts → profiles and uses the author's lat/lng,
+  // so every post from a neighbor within 30km is included automatically.
   if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).rpc('posts_near', {
+    const { data, error } = await (supabase as any).rpc('posts_by_nearby_authors', {
       lat: userLat,
       lng: userLng,
       radius_m: RADIUS_M,

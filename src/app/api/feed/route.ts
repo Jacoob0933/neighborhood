@@ -32,9 +32,11 @@ export async function GET(request: Request) {
   const hasLocation = userLat != null && userLng != null
 
   // Try nearby query if scope=nearby and user has GPS saved
+  // Uses posts_by_nearby_authors which filters by AUTHOR's profile lat/lng,
+  // not by the post's optional location pin (which most posts don't have).
   if (scope === 'nearby' && hasLocation) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).rpc('posts_near', {
+    const { data, error } = await (supabase as any).rpc('posts_by_nearby_authors', {
       lat: userLat,
       lng: userLng,
       radius_m: RADIUS_M,
