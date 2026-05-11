@@ -7,6 +7,7 @@ import { PostCard } from '@/components/feed/PostCard'
 import { CategoryFilter } from '@/components/feed/CategoryFilter'
 import { FeedInfinite } from '@/components/feed/FeedInfinite'
 import { ScopeToggle } from '@/components/feed/ScopeToggle'
+import { getNearbyAuthorIds } from '@/lib/nearby'
 
 const PAGE_SIZE = 20
 const RADIUS_M = 30_000 // 30km
@@ -37,27 +38,31 @@ async function FeedPosts({
   let usedNearby = false
 
   // Filter by AUTHOR's profile GPS — not the post's location field.
-  // posts_near filtered by post.location which most posts don't have (optional pin).
-  // posts_by_nearby_authors joins posts → profiles and uses the author's lat/lng,
-  // so every post from a neighbor within 30km is included automatically.
+  // We do the distance check in TypeScript (Haversine over a bounding-box
+  // pre-filtered set of profiles) so the filter works even if no SQL RPC exists.
+  // If the helper can't resolve any neighbors we return an empty list rather
+  // than falling through to "show everything" (the previous silent-failure bug).
   if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).rpc('posts_by_nearby_authors', {
-      lat: userLat,
-      lng: userLng,
-      radius_m: RADIUS_M,
-      lim: PAGE_SIZE + 1,
-      cat: category && category !== 'all' ? category : null,
-    })
-    if (!error && Array.isArray(data)) {
-      posts = data
-      usedNearby = true
+    const nearbyIds = await getNearbyAuthorIds(supabase, userLat, userLng, RADIUS_M)
+    usedNearby = true
+
+    if (nearbyIds && nearbyIds.length > 0) {
+      let query = supabase
+        .from('posts')
+        .select('*')
+        .in('author_id', nearbyIds)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1)
+      if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+      const { data } = await query
+      posts = data ?? []
+    } else {
+      posts = []
     }
   }
 
-  // Fallback or worldwide: global query (only verified authors in worldwide)
+  // Worldwide: global query (only verified authors)
   if (!usedNearby) {
-    // For worldwide, only show posts from verified users
     if (scope === 'worldwide') {
       const { data: vp } = await supabase.from('profiles').select('id').eq('verified', true)
       const verifiedIds = (vp ?? []).map((p: { id: string }) => p.id)

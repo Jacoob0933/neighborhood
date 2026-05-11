@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { PostCategory } from '@/types/database'
+import { getNearbyAuthorIds } from '@/lib/nearby'
 
 const PAGE_SIZE = 20
 const RADIUS_M = 30_000
@@ -31,22 +32,25 @@ export async function GET(request: Request) {
   const userLng = profile?.lng ?? null
   const hasLocation = userLat != null && userLng != null
 
-  // Try nearby query if scope=nearby and user has GPS saved
-  // Uses posts_by_nearby_authors which filters by AUTHOR's profile lat/lng,
-  // not by the post's optional location pin (which most posts don't have).
-  if (scope === 'nearby' && hasLocation) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).rpc('posts_by_nearby_authors', {
-      lat: userLat,
-      lng: userLng,
-      radius_m: RADIUS_M,
-      lim: PAGE_SIZE + 1,
-      cat: category && category !== 'all' ? category : null,
-      cur: cursor || null,
-    })
-    if (!error && Array.isArray(data)) {
-      posts = data
-      usedNearby = true
+  // Nearby: filter by AUTHOR's profile GPS, computed in TS (no RPC dependency).
+  // Empty result is preferable to silently showing everything if no neighbors are found.
+  if (scope === 'nearby' && hasLocation && userLat != null && userLng != null) {
+    const nearbyIds = await getNearbyAuthorIds(supabase, userLat, userLng, RADIUS_M)
+    usedNearby = true
+
+    if (nearbyIds && nearbyIds.length > 0) {
+      let query = supabase
+        .from('posts')
+        .select('*')
+        .in('author_id', nearbyIds)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1)
+      if (category && category !== 'all') query = query.eq('category', category as PostCategory)
+      if (cursor) query = query.lt('created_at', cursor)
+      const { data } = await query
+      posts = data ?? []
+    } else {
+      posts = []
     }
   }
 
