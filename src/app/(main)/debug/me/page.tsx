@@ -61,22 +61,14 @@ export default async function DebugMePage() {
       </p>
 
       <Section title="YOU">
-        <Row label="user id" value={me?.id ?? '—'} mono />
         <Row label="username" value={me?.username ?? '—'} />
         <Row label="full name" value={me?.full_name ?? '—'} />
         <Row label="city" value={me?.city ?? '—'} />
         <Row label="neighborhood" value={me?.neighborhood ?? '—'} />
         <Row
-          label="lat"
-          value={myLat != null ? myLat.toFixed(6) : '— NOT SET'}
-          mono
-          warn={myLat == null}
-        />
-        <Row
-          label="lng"
-          value={myLng != null ? myLng.toFixed(6) : '— NOT SET'}
-          mono
-          warn={myLng == null}
+          label="gps"
+          value={myLat != null && myLng != null ? 'saved ✓' : '— NOT SET'}
+          warn={myLat == null || myLng == null}
         />
         <Row label="verified" value={me?.verified ? 'yes' : 'no'} />
         <Row label="location_updated_at" value={me?.location_updated_at ?? '—'} mono />
@@ -111,10 +103,8 @@ export default async function DebugMePage() {
               <div style={{ color: '#789', fontSize: 12 }}>
                 {o.city ?? '—'}{o.neighborhood ? ` · ${o.neighborhood}` : ''}
               </div>
-              <div style={{ color: hasGps ? '#aab' : '#f87171', fontSize: 12, fontFamily: 'monospace', marginTop: 4 }}>
-                {hasGps
-                  ? `${(oLat as number).toFixed(5)}, ${(oLng as number).toFixed(5)}`
-                  : 'NO GPS — would not appear in nearby feed'}
+              <div style={{ color: hasGps ? '#aab' : '#f87171', fontSize: 12, marginTop: 4 }}>
+                {hasGps ? 'GPS: saved ✓' : 'NO GPS — would not appear in nearby feed'}
               </div>
               {dist != null && (
                 <div style={{
@@ -141,17 +131,10 @@ export default async function DebugMePage() {
             Helper returned null — could not query profiles.
           </p>
         ) : (
-          <>
-            <p style={{ fontSize: 13, color: '#aab', marginBottom: 8 }}>
-              {Object.keys(nearbyMap).length} author(s) qualify as nearby.
-              Posts from these authors are the ONLY ones shown in nearby feed.
-            </p>
-            {Object.entries(nearbyMap).map(([id, dist]) => (
-              <div key={id} style={{ fontFamily: 'monospace', fontSize: 12, color: '#9bf' }}>
-                {id} — {(dist / 1000).toFixed(2)} km
-              </div>
-            ))}
-          </>
+          <p style={{ fontSize: 13, color: '#aab' }}>
+            {Object.keys(nearbyMap).length} author(s) qualify as nearby.
+            Posts from these authors are the ONLY ones shown in nearby feed.
+          </p>
         )}
       </Section>
     </div>

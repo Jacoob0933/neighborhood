@@ -283,25 +283,11 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
           <div className="flex items-center gap-1.5 text-xs min-w-0" style={{ color: 'var(--text-3)' }}>
             <MapPin size={10} style={{ color: 'var(--accent)' }} />
             <span className="truncate">
-              {scope === 'nearby' ? `${locationLabel} · within 30km` : 'Showing posts worldwide'}
+              {scope === 'nearby'
+                ? `${locationLabel} · within 30km${nearbyAuthorCount != null ? ` · ${nearbyAuthorCount} neighbors` : ''}`
+                : 'Showing posts worldwide'}
             </span>
           </div>
-          {scope === 'nearby' && hasLocation && (
-            <Link
-              href="/debug/me"
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 hover:opacity-80"
-              style={{
-                background: 'rgba(29,155,240,0.12)',
-                color: '#1d9bf0',
-                fontFamily: 'monospace',
-              }}
-              title="Tap for full GPS debug"
-            >
-              {userLat != null && userLng != null
-                ? `${userLat.toFixed(3)},${userLng.toFixed(3)} · ${nearbyAuthorCount ?? 0} near`
-                : 'no gps'}
-            </Link>
-          )}
         </div>
 
         <Suspense>
